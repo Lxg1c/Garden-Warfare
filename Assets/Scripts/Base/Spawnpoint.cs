@@ -5,59 +5,93 @@ using UnityEngine;
 
 public class Spawnpoint : MonoBehaviour
 {
-    [Header("Визуальные эффекты")]
-    public ParticleSystem activationEffect; // Эффект при активации
-    public Light spawnpointLight; // Свет точки (опционально)
-    public Color activeColor = Color.green; // Цвет активной точки
+    public static RespawnManager Instance;
 
-    [Header("Звуки")]
-    public AudioClip activationSound; // Звук активации
+    [Header("Р¤РёРєСЃРёСЂРѕРІР°РЅРЅР°СЏ С‚РѕС‡РєР° РІРѕР·СЂРѕР¶РґРµРЅРёСЏ")]
+    [SerializeField] private Vector3 respawnPosition = Vector3.zero;
+    [SerializeField] private bool useWorldCoordinates = true;
 
-    private bool isActive = false; // Активна ли точка
-    private SpriteRenderer spriteRenderer; // Для смены спрайта
-    private AudioSource audioSource;
+    [Header("РќР°СЃС‚СЂРѕР№РєРё")]
+    public float respawnDelay = 3f;
+    public GameObject playerPrefab;
 
-    void Start()
+    void Awake()
     {
-        // Получаем компоненты
-        spriteRenderer = GetComponent<SpriteRenderer>();
-        audioSource = GetComponent<AudioSource>();
-
-        // Настраиваем начальный цвет света
-        if (spawnpointLight != null)
-            spawnpointLight.color = Color.gray;
-    }
-
-    void OnTriggerEnter2D(Collider2D other)
-    {
-        // Проверяем, что это игрок и точка еще не активна
-        if (other.CompareTag("Player") && !isActive)
+        if (Instance == null)
         {
-            ActivateSpawnpoint();
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
         }
     }
 
-    void ActivateSpawnpoint()
+    public void RespawnPlayer(GameObject playerToRespawn = null)
     {
-        isActive = true;
+        StartCoroutine(RespawnCoroutine(playerToRespawn));
+    }
 
-        // Сохраняем позицию возрождения в GameManager
-        GameManager.Instance.SetSpawnpoint(transform.position);
+    private System.Collections.IEnumerator RespawnCoroutine(GameObject playerToRespawn)
+    {
+        Debug.Log($"Р’РѕР·СЂРѕР¶РґРµРЅРёРµ С‡РµСЂРµР· {respawnDelay} СЃРµРєСѓРЅРґ РІ РїРѕР·РёС†РёРё: {respawnPosition}");
 
-        // Визуальные эффекты
-        if (activationEffect != null)
-            activationEffect.Play();
+        // Р–РґРµРј СѓРєР°Р·Р°РЅРЅРѕРµ РІСЂРµРјСЏ
+        yield return new WaitForSeconds(respawnDelay);
 
-        if (spriteRenderer != null)
-            spriteRenderer.color = activeColor;
+        if (playerToRespawn != null)
+        {
+            // Р•СЃР»Рё РїРµСЂРµРґР°РЅ РєРѕРЅРєСЂРµС‚РЅС‹Р№ РёРіСЂРѕРє - С‚РµР»РµРїРѕСЂС‚РёСЂСѓРµРј РµРіРѕ
+            TeleportPlayer(playerToRespawn);
+        }
+    }
 
-        if (spawnpointLight != null)
-            spawnpointLight.color = activeColor;
+    // РўРµР»РµРїРѕСЂС‚Р°С†РёСЏ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РµРіРѕ РёРіСЂРѕРєР°
+    private void TeleportPlayer(GameObject player)
+    {
+        CharacterController controller = player.GetComponent<CharacterController>();
+        if (controller != null)
+        {
+            controller.enabled = false;
+        }
 
-        // Звуковые эффекты
-        if (activationSound != null && audioSource != null)
-            audioSource.PlayOneShot(activationSound);
+        player.transform.position = GetRespawnPosition();
 
-        Debug.Log("Точка возрождения активирована!");
+        if (controller != null)
+        {
+            controller.enabled = true;
+        }
+
+        Debug.Log("РРіСЂРѕРє РІРѕР·СЂРѕР¶РґС‘РЅ");
+    }
+
+ 
+
+    // РџРѕР»СѓС‡РµРЅРёРµ РїРѕР·РёС†РёРё РІРѕР·СЂРѕР¶РґРµРЅРёСЏ СЃ СѓС‡РµС‚РѕРј С‚РёРїР° РєРѕРѕСЂРґРёРЅР°С‚
+    private Vector3 GetRespawnPosition()
+    {
+        return useWorldCoordinates ? respawnPosition : transform.TransformPoint(respawnPosition);
+    }
+
+    // РњРµС‚РѕРґС‹ РґР»СЏ РЅР°СЃС‚СЂРѕР№РєРё РёР· РґСЂСѓРіРёС… СЃРєСЂРёРїС‚РѕРІ
+    public void SetRespawnPosition(Vector3 newPosition)
+    {
+        respawnPosition = newPosition;
+        Debug.Log($"РўРѕС‡РєР° РІРѕР·СЂРѕР¶РґРµРЅРёСЏ СѓСЃС‚Р°РЅРѕРІР»РµРЅР°: {newPosition}");
+    }
+
+    public Vector3 GetCurrentRespawnPosition()
+    {
+        return GetRespawnPosition();
+    }
+
+    // Р”Р»СЏ РІРёР·СѓР°Р»РёР·Р°С†РёРё С‚РѕС‡РєРё РІРѕР·СЂРѕР¶РґРµРЅРёСЏ РІ СЂРµРґР°РєС‚РѕСЂРµ
+    void OnDrawGizmos()
+    {
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(GetRespawnPosition(), 1f);
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawIcon(GetRespawnPosition() + Vector3.up * 2f, "RespawnIcon", true);
     }
 }
