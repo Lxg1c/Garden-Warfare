@@ -1,39 +1,44 @@
 ﻿using UnityEngine;
+using Weapon.Base;
+using Weapon.Interfaces;
 
-public class WeaponController : MonoBehaviour
+namespace Weapon
 {
-    [Tooltip("Assign the current weapon (must have a class derived from Weapon)")]
-    public Weapon currentWeapon;
-
-    [Tooltip("Если true — стрельба удержанием кнопки, иначе — по нажатию")]
-    public bool holdToFire = true;
-
-    private PlayerInputActions inputActions;
-
-    private void Awake()
+    public class WeaponController : MonoBehaviour
     {
-        inputActions = new PlayerInputActions();
-    }
+        [Tooltip("Assign the current weapon (must have a class derived from Weapon)")]
+        public Weapon.Base.Weapon currentWeapon;
 
-    private void OnEnable() => inputActions.Enable();
-    private void OnDisable() => inputActions.Disable();
+        [Tooltip("Если true — стрельба удержанием кнопки, иначе — по нажатию")]
+        public bool holdToFire = true;
 
-    private void Update()
-    {
-        if (currentWeapon == null) return;
+        private PlayerInputActions _inputActions;
 
-        bool trigger = holdToFire
-            ? inputActions.Player.Fire.IsPressed()
-            : inputActions.Player.Fire.WasPressedThisFrame();
-
-        if (trigger && currentWeapon.CanUse())
+        private void Awake()
         {
-            currentWeapon.Use();
+            _inputActions = new PlayerInputActions();
         }
 
-        if (inputActions.Player.Reload.WasPressedThisFrame() && currentWeapon is IReloadable reloadable)
+        private void OnEnable() => _inputActions.Enable();
+        private void OnDisable() => _inputActions.Disable();
+
+        private void Update()
         {
-            reloadable.Reload();
+            if (currentWeapon == null) return;
+
+            bool trigger = holdToFire
+                ? _inputActions.Player.Fire.IsPressed()
+                : _inputActions.Player.Fire.WasPressedThisFrame();
+
+            if (trigger && currentWeapon.CanUse())
+            {
+                currentWeapon.Use();
+            }
+
+            if (_inputActions.Player.Reload.WasPressedThisFrame() && currentWeapon is IReloadable reloadable)
+            {
+                reloadable.Reload();
+            }
         }
     }
 }
