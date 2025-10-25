@@ -15,6 +15,12 @@ public class NeutralAI : MonoBehaviourPun
     public float maxDistanceFromHome = 10f;
     public Transform homePoint;
     public string playerTag = "Player";
+    public static event System.Action<Transform, Transform> OnGroupAggro; 
+    public float groupAggroRadius = 4f;
+    
+    [Header("Group Settings")]
+    public SpawnPointGroup spawnGroup;
+    private SpawnPointGroup _assignedGroup;
 
     [Header("Combat")]
     public float attackDamage = 10f;
@@ -43,10 +49,32 @@ public class NeutralAI : MonoBehaviourPun
         _health = GetComponent<Health>();
         _homePosition = homePoint != null ? homePoint.position : transform.position;
         
+        // Подпись на события
         _health.OnDamaged += OnDamaged;
         
         _agent.stoppingDistance = 3f;
         _agent.autoBraking = true;
+        
+        if (spawnGroup != null)
+        {
+            spawnGroup.RegisterNeutral(this);
+        }
+        else
+        {
+            // Ищем группу в родительских объектах
+            SpawnPointGroup parentGroup = GetComponentInParent<SpawnPointGroup>();
+            if (parentGroup != null)
+            {
+                parentGroup.RegisterNeutral(this);
+            }
+        }
+    }
+    
+    
+
+    public void SetSpawnGroup(SpawnPointGroup group)
+    {
+        _assignedGroup = group;
     }
 
     private void Update()
@@ -86,6 +114,30 @@ public class NeutralAI : MonoBehaviourPun
                 UpdateReturning();
                 break;
         }
+    }
+    
+    public void OnGroupAggroTriggered(Transform aggroSource, Transform target)
+    {
+        // Пропускаем если это мы сами вызвали агро
+        if (aggroSource == transform)
+            return;
+        
+        // Проверяем что цель жива
+        Health targetHealth = target.GetComponent<Health>();
+        if (targetHealth != null && targetHealth.GetHealth() <= 0)
+            return;
+
+        // ЕСЛИ УЖЕ В БОЮ - проверяем не на ту же ли цель
+        if (_hasAggro && _currentTarget == target)
+        {
+            // Уже атакуем эту цель - просто обновляем таймер
+            _aggroEndTime = Time.time + aggressionDuration;
+            _combatTimer = 3f; // Сбрасываем таймер преследования
+            return;
+        }
+
+        Debug.Log($"Получаем групповой агро от {aggroSource.name} на цель {target.name}");
+        SetAggro(target);
     }
     
     private void CheckAttackRange()
@@ -251,6 +303,22 @@ public class NeutralAI : MonoBehaviourPun
 
     private void SetAggro(Transform target)
     {
+        // Если цель уже мертва - игнорируем
+        Health targetHealth = target.GetComponent<Health>();
+        if (targetHealth != null && targetHealth.GetHealth() <= 0)
+        {
+            Debug.Log($"Цель {target.name} мертва, игнорируем агро");
+            return;
+        }
+
+        // Если уже атакуем эту цель - просто обновляем таймеры
+        if (_hasAggro && _currentTarget == target)
+        {
+            _aggroEndTime = Time.time + aggressionDuration;
+            _combatTimer = 3f;
+            return;
+        }
+
         Debug.Log($"SetAggro вызван с целью: {target.name}");
     
         // Отписываемся от предыдущей цели если была
@@ -277,6 +345,16 @@ public class NeutralAI : MonoBehaviourPun
 
         _currentState = State.Chasing;
         _agent.isStopped = false;
+    
+        // УВЕДОМЛЯЕМ ГРУППУ ОБ АГРО (с проверкой чтобы не уведомлять самого себя)
+        if (_assignedGroup != null)
+        {
+            _assignedGroup.NotifyGroupAggro(transform, target);
+        }
+        else if (spawnGroup != null)
+        {
+            spawnGroup.NotifyGroupAggro(transform, target);
+        }
     }
 
     private void RotateTowardsTarget()
@@ -339,6 +417,9 @@ public class NeutralAI : MonoBehaviourPun
         {
             SetAggro(attacker);
             StartCoroutine(DamageFlash());
+        
+            // УВЕДОМЛЯЕМ СОСЕДЕЙ ОБ АТАКЕ
+            OnGroupAggro?.Invoke(transform, attacker);
         }
     }
 
@@ -450,8 +531,17 @@ public class NeutralAI : MonoBehaviourPun
         if (_returnCoroutine != null)
             StopCoroutine(_returnCoroutine);
         
-        // Отписываемся от смерти цели при уничтожении
         UnsubscribeFromTargetDeath();
+    
+        // ОТМЕНА РЕГИСТРАЦИИ В ГРУППЕ
+        if (_assignedGroup != null)
+        {
+            _assignedGroup.UnregisterNeutral(this);
+        }
+        else if (spawnGroup != null)
+        {
+            spawnGroup.UnregisterNeutral(this);
+        }
     }
 
     private void OnDrawGizmosSelected()
