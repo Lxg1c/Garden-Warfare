@@ -31,6 +31,7 @@ public class NeutralAI : MonoBehaviourPun
     private bool _isAtHome = true;
     private float _combatTimer;
     private bool _combatTimerActive;
+    private float _lastDetectionTime;
 
     // Простые состояния
     private enum State { Idle, Chasing, Attacking, Returning }
@@ -51,6 +52,12 @@ public class NeutralAI : MonoBehaviourPun
     private void Update()
     {
         CheckAttackRange();
+        
+        if (Time.time - _lastDetectionTime > 0.5f)
+        {
+            CheckForNearbyPlayers();
+            _lastDetectionTime = Time.time;
+        }
     
         // Обновляем таймер боя
         if (_combatTimerActive)
@@ -400,6 +407,38 @@ public class NeutralAI : MonoBehaviourPun
         if (_currentTarget == deadTransform)
         {
             StartReturningHome();
+        }
+    }
+    
+    private void CheckForNearbyPlayers()
+    {
+        if (_hasAggro || _currentState == State.Returning) return;
+
+        Debug.Log($"Проверяем игроков в радиусе {detectionRadius}. Позиция: {transform.position}");
+    
+        Collider[] nearbyPlayers = Physics.OverlapSphere(transform.position, detectionRadius);
+        Debug.Log($"Найдено коллайдеров: {nearbyPlayers.Length}");
+    
+        foreach (Collider collider in nearbyPlayers)
+        {
+            Debug.Log($"Проверяем коллайдер: {collider.name}, тег: {collider.tag}");
+        
+            if (collider.CompareTag(playerTag))
+            {
+                Transform player = collider.transform;
+            
+                // Проверяем что игрок живой
+                Health playerHealth = player.GetComponent<Health>();
+                if (playerHealth != null && playerHealth.GetHealth() <= 0) 
+                {
+                    Debug.Log($"Игрок {player.name} мертв, пропускаем");
+                    continue;
+                }
+            
+                Debug.Log($"Игрок {player.name} обнаружен в радиусе, начинаем преследование");
+                SetAggro(player);
+                break;
+            }
         }
     }
 
