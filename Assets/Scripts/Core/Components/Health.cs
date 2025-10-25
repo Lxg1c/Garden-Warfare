@@ -84,31 +84,21 @@ namespace Core.Components
                 Die();
             }
         }
-
+        
         private void Die()
         {
             Debug.Log($"[{name}] died!");
             OnDeath?.Invoke();
 
-            // Если объект сетевой и у нас есть Photon + мы владеем view -> уничтожаем через Photon
-            if (photonView != null && PhotonNetwork.IsConnected)
-            {
-                if (photonView.IsMine)
-                {
-                    PhotonNetwork.Destroy(gameObject);
-                }
-                else
-                {
-                    // Не владеем — просто деактивируем визуально (опционально)
-                    // Destroy(gameObject) здесь не вызываем, т.к. удаление контролируется владельцем/мастером.
-                    gameObject.SetActive(false);
-                }
-            }
+            var respawn = FindFirstObjectByType<RespawnManager>();
+            if (respawn != null)
+                respawn.StartRespawn(gameObject);
             else
-            {
-                Destroy(gameObject);
-            }
+                Debug.LogWarning("RespawnManager not found.");
+
+            gameObject.SetActive(false);
         }
+
 
         public float GetHealth() => _currentHealth;
     }

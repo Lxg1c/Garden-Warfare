@@ -1,4 +1,3 @@
-using System;
 using Core.Components;
 using UnityEngine;
 using UnityEngine.AI;
@@ -11,8 +10,8 @@ public class NeutralAI : MonoBehaviourPun
 {
     [Header("Settings")]
     public float detectionRadius = 6f;
-    public float attackRange = 2.5f;
-    public float aggressionTimeOut = 3f;
+    public float attackRange = 4f;
+    public float aggressionDuration = 5f;
     public float maxDistanceFromHome = 10f;
     public Transform homePoint;
     public string playerTag = "Player";
@@ -23,253 +22,291 @@ public class NeutralAI : MonoBehaviourPun
 
     private NavMeshAgent _agent;
     private Health _health;
-    private Transform _target;
+    private Transform _currentTarget;
     private Vector3 _homePosition;
     private float _lastAttackTime;
-    private float _aggressionEndTime;
-    private bool _isAggressive;
-    private float _originalDetectionRadius;
-    private bool _isForcedReturn; // Флаг принудительного возврата
+    private float _aggroEndTime = 3f;
+    private bool _hasAggro;
+    private Coroutine _returnCoroutine;
+    private bool _isAtHome = true;
+
+    // Простые состояния
+    private enum State { Idle, Chasing, Attacking, Returning }
+    private State _currentState = State.Idle;
 
     private void Start()
     {
         _agent = GetComponent<NavMeshAgent>();
         _health = GetComponent<Health>();
         _homePosition = homePoint != null ? homePoint.position : transform.position;
-        _originalDetectionRadius = detectionRadius;
-
+        
         _health.OnDamaged += OnDamaged;
         
-        _agent.stoppingDistance = attackRange;
-        _agent.autoBraking = true; 
-        
-        Debug.Log($"{name} initialized. Home position: {_homePosition}");
+        _agent.stoppingDistance = 3f;
+        _agent.autoBraking = true;
     }
 
     private void Update()
     {
-        // ВСЕГДА проверяем расстояние от дома ПЕРВЫМ делом
-        CheckDistanceFromHome();
-
-        // Если принудительно возвращаемся - игнорируем всё остальное
-        if (_isForcedReturn)
+        CheckAttackRange();
+        
+        switch (_currentState)
         {
-            HandleForcedReturn();
-            return;
-        }
-
-        // Проверяем таймаут агрессии
-        if (_isAggressive && Time.time >= _aggressionEndTime)
-        {
-            ResetAggression();
-            return;
-        }
-
-        if (_isAggressive)
-        {
-            HandleAggressiveState();
-        }
-        else
-        {
-            HandlePeacefulState();
+            case State.Idle:
+                UpdateIdle();
+                break;
+            case State.Chasing:
+                UpdateChasing();
+                break;
+            case State.Attacking:
+                UpdateAttacking();
+                break;
+            case State.Returning:
+                UpdateReturning();
+                break;
         }
     }
-
-    private void CheckDistanceFromHome()
+    
+    private void CheckAttackRange()
     {
-        float distanceFromHome = Vector3.Distance(transform.position, _homePosition);
-        
-        if (distanceFromHome > maxDistanceFromHome && !_isForcedReturn)
+        if (_hasAggro && _currentTarget != null)
         {
-            Debug.Log($"{name} слишком далеко от дома! Distance: {distanceFromHome}, max: {maxDistanceFromHome}");
-            ForceReturnHome();
-        }
-    }
-
-    private void ForceReturnHome()
-    {
-        _isForcedReturn = true;
-        _isAggressive = false;
-        _target = null;
+            float distanceToTarget = Vector3.Distance(transform.position, _currentTarget.position);
         
-        Debug.Log($"{name} принудительно возвращается домой");
-        ReturnHome();
-    }
-
-    private void HandleForcedReturn()
-    {
-        float distanceToHome = Vector3.Distance(transform.position, _homePosition);
-        
-        // Когда вернулись достаточно близко к дому, снимаем флаг
-        if (distanceToHome <= maxDistanceFromHome * 0.7f) // 70% от максимального расстояния
-        {
-            _isForcedReturn = false;
-            Debug.Log($"{name} вернулся в зону дома");
-            return;
-        }
-        
-        // Продолжаем двигаться домой
-        ReturnHome();
-    }
-
-    private void HandleAggressiveState()
-    {
-        // Если цель потеряна
-        if (_target == null || !_target.gameObject.activeInHierarchy)
-        {
-            FindTarget();
-            if (_target == null)
+            if (_currentState == State.Chasing && distanceToTarget <= attackRange)
             {
-                ResetAggression();
-                return;
+                _currentState = State.Attacking;
+                _agent.isStopped = true;
+            }
+            else if (_currentState == State.Attacking && distanceToTarget > attackRange)
+            {
+                _currentState = State.Chasing;
+                _agent.isStopped = false;
             }
         }
+    }
 
-        float distanceToTarget = Vector3.Distance(transform.position, _target.position);
-        
+    private void UpdateIdle()
+    {
+        // Проверяем расстояние от дома
+        float distanceFromHome = Vector3.Distance(transform.position, _homePosition);
+        if (distanceFromHome > maxDistanceFromHome)
+        {
+            StartReturningHome();
+            return;
+        }
+
+        // Если есть агро, начинаем преследование
+        if (_hasAggro && _currentTarget != null)
+        {
+            _currentState = State.Chasing;
+            _agent.isStopped = false;
+        }
+    }
+
+    private void UpdateChasing()
+    {
+        if (_currentTarget == null)
+        {
+            StartReturningHome();
+            return;
+        }
+
+        // Проверяем таймаут агро
+        if (Time.time > _aggroEndTime)
+        {
+            StartReturningHome();
+            return;
+        }
+
+        float distanceToTarget = Vector3.Distance(transform.position, _currentTarget.position);
         if (distanceToTarget <= attackRange)
         {
-            // Останавливаемся и атакуем
-            if (_agent.hasPath)
-            {
-                _agent.ResetPath();
-            }
-
-            RotateTowardsTarget();
-
-            if (Time.time >= _lastAttackTime + attackCooldown)
-            {
-                AttackPlayer();
-            }
+            // В радиусе атаки
+            _currentState = State.Attacking;
+            _agent.isStopped = true;
         }
         else
         {
-            // Преследуем
-            _agent.SetDestination(_target.position);
+            // Продолжаем преследование
+            _agent.SetDestination(_currentTarget.position);
         }
     }
 
-    private void HandlePeacefulState()
+    private void UpdateAttacking()
     {
-        // Периодически ищем цели
-        if (Time.frameCount % 60 == 0)
+        if (_currentTarget == null)
         {
-            FindTarget();
+            StartReturningHome();
+            return;
         }
 
-        // Возвращаемся домой если не агрессивны
-        ReturnHome();
-    }
-
-    private void FindTarget()
-    {
-        // Не ищем цели если принудительно возвращаемся
-        if (_isForcedReturn) return;
-
-        Collider[] colliders = Physics.OverlapSphere(transform.position, detectionRadius);
-        foreach (var collider in colliders)
+        // Проверяем таймаут агро
+        if (Time.time > _aggroEndTime)
         {
-            if (collider.CompareTag(playerTag) && collider.transform != this.transform)
-            {
-                SetTarget(collider.transform);
-                return;
-            }
+            StartReturningHome();
+            return;
+        }
+
+        float distanceToTarget = Vector3.Distance(transform.position, _currentTarget.position);
+        
+        if (distanceToTarget > attackRange)
+        {
+            // Цель убежала, продолжаем преследование
+            _currentState = State.Chasing;
+            _agent.isStopped = false;
+            return;
+        }
+
+        // Поворачиваемся к цели
+        RotateTowardsTarget();
+
+        // Атакуем
+        if (Time.time >= _lastAttackTime + attackCooldown)
+        {
+            AttackTarget();
         }
     }
 
-    private void SetTarget(Transform newTarget)
-    {
-        _target = newTarget;
-        _isAggressive = true;
-        _aggressionEndTime = Time.time + aggressionTimeOut;
-        
-        Debug.Log($"{name} атакует {newTarget.name}");
-    }
-
-    private void ResetAggression()
-    {
-        _isAggressive = false;
-        _target = null;
-        detectionRadius = _originalDetectionRadius;
-        
-        Debug.Log($"{name} сбросил агрессию");
-        ReturnHome();
-    }
-
-    private void ReturnHome()
+    private void UpdateReturning()
     {
         float distanceToHome = Vector3.Distance(transform.position, _homePosition);
         
-        if (distanceToHome <= 1f) // Более строгое условие достижения дома
+        if (distanceToHome <= 1f)
         {
-            if (_agent.hasPath)
+            // Достигли дома
+            _agent.isStopped = true;
+            _currentState = State.Idle;
+            _hasAggro = false;
+            _currentTarget = null;
+            _isAtHome = true;
+            
+            if (_returnCoroutine != null)
             {
-                _agent.ResetPath();
+                StopCoroutine(_returnCoroutine);
+                _returnCoroutine = null;
             }
             return;
         }
-        
-        // Устанавливаем путь только если нужно
-        if (!_agent.hasPath || _agent.destination != _homePosition)
+
+        // Продолжаем движение к дому
+        if (!_agent.hasPath || Vector3.Distance(_agent.destination, _homePosition) > 0.5f)
         {
             _agent.SetDestination(_homePosition);
         }
     }
 
-    private void RotateTowardsTarget()
+    private void StartReturningHome()
     {
-        if (_target != null)
+        if (_currentState == State.Returning) return;
+        
+        _currentState = State.Returning;
+        _hasAggro = false;
+        _agent.isStopped = false;
+        _agent.SetDestination(_homePosition);
+        
+        if (_returnCoroutine != null)
+            StopCoroutine(_returnCoroutine);
+        
+        _returnCoroutine = StartCoroutine(ReturnHomeRoutine());
+    }
+
+    private IEnumerator ReturnHomeRoutine()
+    {
+        yield return new WaitForSeconds(0.5f);
+        
+        // Двойная проверка, что мы все еще возвращаемся
+        if (_currentState == State.Returning)
         {
-            Vector3 direction = (_target.position - transform.position).normalized;
-            direction.y = 0;
-            
-            if (direction != Vector3.zero)
-            {
-                Quaternion targetRotation = Quaternion.LookRotation(direction);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 
-                    Time.deltaTime * 5f);
-            }
+            _agent.SetDestination(_homePosition);
         }
     }
 
-    private void AttackPlayer()
+    private void SetAggro(Transform target)
     {
-        if (_target != null)
+        _currentTarget = target;
+        _hasAggro = true;
+        _aggroEndTime = Time.time + aggressionDuration;
+        _isAtHome = false;
+
+        // Прерываем возврат если он был
+        if (_returnCoroutine != null)
         {
-            float distanceToTarget = Vector3.Distance(transform.position, _target.position);
-            if (distanceToTarget <= attackRange)
+            StopCoroutine(_returnCoroutine);
+            _returnCoroutine = null;
+        }
+
+        if (_currentState == State.Returning)
+        {
+            _currentState = State.Chasing;
+        }
+    }
+
+    private void RotateTowardsTarget()
+    {
+        if (_currentTarget == null) return;
+
+        Vector3 direction = (_currentTarget.position - transform.position).normalized;
+        direction.y = 0;
+        if (direction != Vector3.zero)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 5f);
+        }
+    }
+
+    private void AttackTarget()
+    {
+        Debug.Log("Вызываем attack target");
+        if (_currentTarget == null) return;
+
+        Health targetHealth = _currentTarget.GetComponent<Health>();
+        if (targetHealth != null)
+        {
+            Debug.Log("Есть компонент здоровья");
+            if (PhotonNetwork.IsConnected && photonView != null)
             {
-                var health = _target.GetComponent<Health>();
-                if (health != null)
+                Debug.Log("Выполняем атаку по фотону");
+                // Получаем ViewID атакующего (этого нейтрала)
+                int attackerViewId = photonView.ViewID;
+            
+                // Вызываем RPC на цели через её PhotonView
+                PhotonView targetPhotonView = _currentTarget.GetComponent<PhotonView>();
+                if (targetPhotonView != null)
                 {
-                    if (PhotonNetwork.IsConnected && photonView != null)
-                    {
-                        health.photonView.RPC("TakeDamageRPC", RpcTarget.All, attackDamage, photonView.ViewID);
-                    }
-                    else
-                    {
-                        health.TakeDamage(attackDamage, transform);
-                    }
-                
-                    Debug.Log($"Атаковал {_target.name}");
-                    _lastAttackTime = Time.time;
-                    _aggressionEndTime = Time.time + aggressionTimeOut;
+                    Debug.Log($"Вызываем RPC атаки на цели {_currentTarget.name}");
+                    targetPhotonView.RPC("TakeDamageRPC", RpcTarget.All, attackDamage, attackerViewId);
+                }
+                else
+                {
+                    Debug.LogWarning($"У цели {_currentTarget.name} нет PhotonView!");
                 }
             }
+            else
+            {
+                // Оффлайн режим
+                Debug.Log("Атакуем игрока (оффлайн)");
+                targetHealth.TakeDamage(attackDamage, transform);
+            }
+        
+            Debug.Log($"Атаковал игрока! Урон: {attackDamage}");
         }
+        else
+        {
+            Debug.LogWarning("У цели нет компонента Health!");
+        }
+
+        _lastAttackTime = Time.time;
+        _aggroEndTime = Time.time + aggressionDuration;
     }
 
     private void OnDamaged(Transform attacker)
     {
-        Debug.Log($"{name} получил урон от {attacker.name}");
-
-        if (attacker != null && !_isForcedReturn)
+        if (attacker != null)
         {
-            SetTarget(attacker);
-            detectionRadius = _originalDetectionRadius * 1.5f;
+            SetAggro(attacker);
+            StartCoroutine(DamageFlash());
         }
-        
-        StartCoroutine(DamageFlash());
     }
 
     private IEnumerator DamageFlash()
@@ -284,28 +321,62 @@ public class NeutralAI : MonoBehaviourPun
         }
     }
 
+    // Методы для внешнего вызова (например, из триггеров)
+    public void OnEnterAttackRange(Transform target)
+    {
+        if (_hasAggro && _currentTarget == target && _currentState == State.Chasing)
+        {
+            _currentState = State.Attacking;
+            _agent.isStopped = true;
+        }
+    }
+
+    public void OnExitAttackRange(Transform target)
+    {
+        if (_hasAggro && _currentTarget == target && _currentState == State.Attacking)
+        {
+            _currentState = State.Chasing;
+            _agent.isStopped = false;
+        }
+    }
+
     private void OnDestroy()
     {
         if (_health != null)
             _health.OnDamaged -= OnDamaged;
+        
+        if (_returnCoroutine != null)
+            StopCoroutine(_returnCoroutine);
     }
 
     private void OnDrawGizmosSelected()
     {
-        // Радиус обнаружения
-        Gizmos.color = _isAggressive ? Color.red : Color.yellow;
+        // Визуализация состояний
+        switch (_currentState)
+        {
+            case State.Idle:
+                Gizmos.color = Color.green;
+                break;
+            case State.Chasing:
+                Gizmos.color = Color.yellow;
+                break;
+            case State.Attacking:
+                Gizmos.color = Color.red;
+                break;
+            case State.Returning:
+                Gizmos.color = Color.blue;
+                break;
+        }
+        Gizmos.DrawWireSphere(transform.position, 1f);
+
+        Gizmos.color = Color.white;
         Gizmos.DrawWireSphere(transform.position, detectionRadius);
         
-        // Радиус атаки
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, attackRange);
         
-        // Зона активности (максимальное расстояние от дома)
-        Gizmos.color = _isForcedReturn ? Color.magenta : Color.blue;
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(_homePosition, 0.5f);
         Gizmos.DrawWireSphere(_homePosition, maxDistanceFromHome);
-        
-        // Домашняя позиция
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(_homePosition, 0.3f);
     }
 }
