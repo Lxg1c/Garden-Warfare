@@ -14,11 +14,12 @@ namespace Core.Components
     {
         [SerializeField] private float maxHealth = 100f;
         private float _currentHealth;
-
+        
+        // Events
         public delegate void DamageEvent(Transform attacker);
         public event DamageEvent OnDamaged;
 
-        public delegate void DeathEvent();
+        public delegate void DeathEvent(Transform deadTransform);
         public event DeathEvent OnDeath;
 
         private void Start()
@@ -88,7 +89,7 @@ namespace Core.Components
         private void Die()
         {
             Debug.Log($"[{name}] died!");
-            OnDeath?.Invoke();
+            OnDeath?.Invoke(transform); // Передаем трансформ умершего
 
             var respawn = FindFirstObjectByType<RespawnManager>();
             if (respawn != null)

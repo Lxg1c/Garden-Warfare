@@ -29,6 +29,8 @@ public class NeutralAI : MonoBehaviourPun
     private bool _hasAggro;
     private Coroutine _returnCoroutine;
     private bool _isAtHome = true;
+    private float _combatTimer;
+    private bool _combatTimerActive;
 
     // Простые состояния
     private enum State { Idle, Chasing, Attacking, Returning }
@@ -49,7 +51,19 @@ public class NeutralAI : MonoBehaviourPun
     private void Update()
     {
         CheckAttackRange();
-        
+    
+        // Обновляем таймер боя
+        if (_combatTimerActive)
+        {
+            _combatTimer -= Time.deltaTime;
+            if (_combatTimer <= 0f)
+            {
+                Debug.Log("Таймер боя истек, возвращаемся на базу");
+                StartReturningHome();
+                _combatTimerActive = false;
+            }
+        }
+    
         switch (_currentState)
         {
             case State.Idle:
@@ -199,15 +213,21 @@ public class NeutralAI : MonoBehaviourPun
     private void StartReturningHome()
     {
         if (_currentState == State.Returning) return;
-        
+    
         _currentState = State.Returning;
         _hasAggro = false;
         _agent.isStopped = false;
         _agent.SetDestination(_homePosition);
-        
+    
+        // Отписываемся от смерти цели
+        UnsubscribeFromTargetDeath();
+    
+        // Сбрасываем таймер боя
+        _combatTimerActive = false;
+    
         if (_returnCoroutine != null)
             StopCoroutine(_returnCoroutine);
-        
+    
         _returnCoroutine = StartCoroutine(ReturnHomeRoutine());
     }
 
@@ -224,22 +244,32 @@ public class NeutralAI : MonoBehaviourPun
 
     private void SetAggro(Transform target)
     {
+        Debug.Log($"SetAggro вызван с целью: {target.name}");
+    
+        // Отписываемся от предыдущей цели если была
+        UnsubscribeFromTargetDeath();
+    
         _currentTarget = target;
         _hasAggro = true;
         _aggroEndTime = Time.time + aggressionDuration;
         _isAtHome = false;
 
-        // Прерываем возврат если он был
+        // Подписываемся на смерть новой цели
+        SubscribeToTargetDeath();
+
+        // Запускаем таймер преследования
+        _combatTimer = 3f;
+        _combatTimerActive = true;
+        Debug.Log("Запущен таймер преследования: 3 секунды");
+
         if (_returnCoroutine != null)
         {
             StopCoroutine(_returnCoroutine);
             _returnCoroutine = null;
         }
 
-        if (_currentState == State.Returning)
-        {
-            _currentState = State.Chasing;
-        }
+        _currentState = State.Chasing;
+        _agent.isStopped = false;
     }
 
     private void RotateTowardsTarget()
@@ -267,10 +297,7 @@ public class NeutralAI : MonoBehaviourPun
             if (PhotonNetwork.IsConnected && photonView != null)
             {
                 Debug.Log("Выполняем атаку по фотону");
-                // Получаем ViewID атакующего (этого нейтрала)
                 int attackerViewId = photonView.ViewID;
-            
-                // Вызываем RPC на цели через её PhotonView
                 PhotonView targetPhotonView = _currentTarget.GetComponent<PhotonView>();
                 if (targetPhotonView != null)
                 {
@@ -284,11 +311,10 @@ public class NeutralAI : MonoBehaviourPun
             }
             else
             {
-                // Оффлайн режим
                 Debug.Log("Атакуем игрока (оффлайн)");
                 targetHealth.TakeDamage(attackDamage, transform);
             }
-        
+    
             Debug.Log($"Атаковал игрока! Урон: {attackDamage}");
         }
         else
@@ -339,14 +365,54 @@ public class NeutralAI : MonoBehaviourPun
             _agent.isStopped = false;
         }
     }
+    
+    private void SubscribeToTargetDeath()
+    {
+        if (_currentTarget != null)
+        {
+            Health targetHealth = _currentTarget.GetComponent<Health>();
+            if (targetHealth != null)
+            {
+                targetHealth.OnDeath += OnTargetDied;
+                Debug.Log($"Подписались на смерть цели: {_currentTarget.name}");
+            }
+        }
+    }
+
+    private void UnsubscribeFromTargetDeath()
+    {
+        if (_currentTarget != null)
+        {
+            Health targetHealth = _currentTarget.GetComponent<Health>();
+            if (targetHealth != null)
+            {
+                targetHealth.OnDeath -= OnTargetDied;
+                Debug.Log($"Отписались от смерти цели: {_currentTarget.name}");
+            }
+        }
+    }
+
+    private void OnTargetDied(Transform deadTransform)
+    {
+        Debug.Log($"Цель {deadTransform.name} умерла, возвращаемся на базу");
+    
+        // Проверяем что это наша текущая цель
+        if (_currentTarget == deadTransform)
+        {
+            StartReturningHome();
+        }
+    }
 
     private void OnDestroy()
     {
         if (_health != null)
             _health.OnDamaged -= OnDamaged;
-        
+    
         if (_returnCoroutine != null)
             StopCoroutine(_returnCoroutine);
+        
+        // Отписываемся от смерти цели при уничтожении
+        UnsubscribeFromTargetDeath();
     }
 
     private void OnDrawGizmosSelected()
