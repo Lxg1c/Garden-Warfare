@@ -30,17 +30,11 @@ namespace Player
         private void Start()
         {
             _characterController = GetComponent<CharacterController>();
-
-            // Если это не наш игрок, отключаем ввод
-            if (!photonView.IsMine)
-            {
-                _playerInputActions.Disable();
-            }
         }
 
         private void Update()
         {
-            if (!photonView.IsMine) return; // Управляем только своим персонажем
+            if (!photonView.IsMine) return;
 
             moveDirection = new Vector3(_moveInput.x, _verticalVelocity, _moveInput.y);
 

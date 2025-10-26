@@ -4,6 +4,7 @@ using UnityEngine.AI;
 using Photon.Pun;
 using System.Collections;
 
+
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(Health))]
 public class NeutralAI : MonoBehaviourPun
@@ -34,7 +35,6 @@ public class NeutralAI : MonoBehaviourPun
     private float _aggroEndTime = 3f;
     private bool _hasAggro;
     private Coroutine _returnCoroutine;
-    private bool _isAtHome = true;
     private float _combatTimer;
     private bool _combatTimerActive;
     private float _lastDetectionTime;
@@ -49,7 +49,6 @@ public class NeutralAI : MonoBehaviourPun
         _health = GetComponent<Health>();
         _homePosition = homePoint != null ? homePoint.position : transform.position;
         
-        // Подпись на события
         _health.OnDamaged += OnDamaged;
         
         _agent.stoppingDistance = 3f;
@@ -61,7 +60,6 @@ public class NeutralAI : MonoBehaviourPun
         }
         else
         {
-            // Ищем группу в родительских объектах
             SpawnPointGroup parentGroup = GetComponentInParent<SpawnPointGroup>();
             if (parentGroup != null)
             {
@@ -70,8 +68,6 @@ public class NeutralAI : MonoBehaviourPun
         }
     }
     
-    
-
     public void SetSpawnGroup(SpawnPointGroup group)
     {
         _assignedGroup = group;
@@ -87,7 +83,6 @@ public class NeutralAI : MonoBehaviourPun
             _lastDetectionTime = Time.time;
         }
     
-        // Обновляем таймер боя
         if (_combatTimerActive)
         {
             _combatTimer -= Time.deltaTime;
@@ -118,21 +113,17 @@ public class NeutralAI : MonoBehaviourPun
     
     public void OnGroupAggroTriggered(Transform aggroSource, Transform target)
     {
-        // Пропускаем если это мы сами вызвали агро
         if (aggroSource == transform)
             return;
         
-        // Проверяем что цель жива
         Health targetHealth = target.GetComponent<Health>();
         if (targetHealth != null && targetHealth.GetHealth() <= 0)
             return;
 
-        // ЕСЛИ УЖЕ В БОЮ - проверяем не на ту же ли цель
         if (_hasAggro && _currentTarget == target)
         {
-            // Уже атакуем эту цель - просто обновляем таймер
             _aggroEndTime = Time.time + aggressionDuration;
-            _combatTimer = 3f; // Сбрасываем таймер преследования
+            _combatTimer = 3f;
             return;
         }
 
@@ -161,7 +152,6 @@ public class NeutralAI : MonoBehaviourPun
 
     private void UpdateIdle()
     {
-        // Проверяем расстояние от дома
         float distanceFromHome = Vector3.Distance(transform.position, _homePosition);
         if (distanceFromHome > maxDistanceFromHome)
         {
@@ -169,7 +159,6 @@ public class NeutralAI : MonoBehaviourPun
             return;
         }
 
-        // Если есть агро, начинаем преследование
         if (_hasAggro && _currentTarget != null)
         {
             _currentState = State.Chasing;
@@ -185,7 +174,6 @@ public class NeutralAI : MonoBehaviourPun
             return;
         }
 
-        // Проверяем таймаут агро
         if (Time.time > _aggroEndTime)
         {
             StartReturningHome();
@@ -195,13 +183,11 @@ public class NeutralAI : MonoBehaviourPun
         float distanceToTarget = Vector3.Distance(transform.position, _currentTarget.position);
         if (distanceToTarget <= attackRange)
         {
-            // В радиусе атаки
             _currentState = State.Attacking;
             _agent.isStopped = true;
         }
         else
         {
-            // Продолжаем преследование
             _agent.SetDestination(_currentTarget.position);
         }
     }
@@ -214,7 +200,6 @@ public class NeutralAI : MonoBehaviourPun
             return;
         }
 
-        // Проверяем таймаут агро
         if (Time.time > _aggroEndTime)
         {
             StartReturningHome();
@@ -225,16 +210,13 @@ public class NeutralAI : MonoBehaviourPun
         
         if (distanceToTarget > attackRange)
         {
-            // Цель убежала, продолжаем преследование
             _currentState = State.Chasing;
             _agent.isStopped = false;
             return;
         }
 
-        // Поворачиваемся к цели
         RotateTowardsTarget();
 
-        // Атакуем
         if (Time.time >= _lastAttackTime + attackCooldown)
         {
             AttackTarget();
@@ -247,12 +229,10 @@ public class NeutralAI : MonoBehaviourPun
         
         if (distanceToHome <= 1f)
         {
-            // Достигли дома
             _agent.isStopped = true;
             _currentState = State.Idle;
             _hasAggro = false;
             _currentTarget = null;
-            _isAtHome = true;
             
             if (_returnCoroutine != null)
             {
@@ -262,7 +242,6 @@ public class NeutralAI : MonoBehaviourPun
             return;
         }
 
-        // Продолжаем движение к дому
         if (!_agent.hasPath || Vector3.Distance(_agent.destination, _homePosition) > 0.5f)
         {
             _agent.SetDestination(_homePosition);
@@ -278,10 +257,7 @@ public class NeutralAI : MonoBehaviourPun
         _agent.isStopped = false;
         _agent.SetDestination(_homePosition);
     
-        // Отписываемся от смерти цели
         UnsubscribeFromTargetDeath();
-    
-        // Сбрасываем таймер боя
         _combatTimerActive = false;
     
         if (_returnCoroutine != null)
@@ -294,7 +270,6 @@ public class NeutralAI : MonoBehaviourPun
     {
         yield return new WaitForSeconds(0.5f);
         
-        // Двойная проверка, что мы все еще возвращаемся
         if (_currentState == State.Returning)
         {
             _agent.SetDestination(_homePosition);
@@ -303,7 +278,6 @@ public class NeutralAI : MonoBehaviourPun
 
     private void SetAggro(Transform target)
     {
-        // Если цель уже мертва - игнорируем
         Health targetHealth = target.GetComponent<Health>();
         if (targetHealth != null && targetHealth.GetHealth() <= 0)
         {
@@ -311,7 +285,6 @@ public class NeutralAI : MonoBehaviourPun
             return;
         }
 
-        // Если уже атакуем эту цель - просто обновляем таймеры
         if (_hasAggro && _currentTarget == target)
         {
             _aggroEndTime = Time.time + aggressionDuration;
@@ -321,18 +294,14 @@ public class NeutralAI : MonoBehaviourPun
 
         Debug.Log($"SetAggro вызван с целью: {target.name}");
     
-        // Отписываемся от предыдущей цели если была
         UnsubscribeFromTargetDeath();
     
         _currentTarget = target;
         _hasAggro = true;
         _aggroEndTime = Time.time + aggressionDuration;
-        _isAtHome = false;
 
-        // Подписываемся на смерть новой цели
         SubscribeToTargetDeath();
 
-        // Запускаем таймер преследования
         _combatTimer = 3f;
         _combatTimerActive = true;
         Debug.Log("Запущен таймер преследования: 3 секунды");
@@ -346,7 +315,6 @@ public class NeutralAI : MonoBehaviourPun
         _currentState = State.Chasing;
         _agent.isStopped = false;
     
-        // УВЕДОМЛЯЕМ ГРУППУ ОБ АГРО (с проверкой чтобы не уведомлять самого себя)
         if (_assignedGroup != null)
         {
             _assignedGroup.NotifyGroupAggro(transform, target);
@@ -418,24 +386,22 @@ public class NeutralAI : MonoBehaviourPun
             SetAggro(attacker);
             StartCoroutine(DamageFlash());
         
-            // УВЕДОМЛЯЕМ СОСЕДЕЙ ОБ АТАКЕ
             OnGroupAggro?.Invoke(transform, attacker);
         }
     }
 
     private IEnumerator DamageFlash()
     {
-        var renderer = GetComponent<Renderer>();
-        if (renderer != null)
+        var meshRenderer = GetComponent<Renderer>(); // Переименовал переменную
+        if (meshRenderer != null)
         {
-            Color originalColor = renderer.material.color;
-            renderer.material.color = Color.red;
+            Color originalColor = meshRenderer.material.color;
+            meshRenderer.material.color = Color.red;
             yield return new WaitForSeconds(0.2f);
-            renderer.material.color = originalColor;
+            meshRenderer.material.color = originalColor;
         }
     }
 
-    // Методы для внешнего вызова (например, из триггеров)
     public void OnEnterAttackRange(Transform target)
     {
         if (_hasAggro && _currentTarget == target && _currentState == State.Chasing)
@@ -484,7 +450,6 @@ public class NeutralAI : MonoBehaviourPun
     {
         Debug.Log($"Цель {deadTransform.name} умерла, возвращаемся на базу");
     
-        // Проверяем что это наша текущая цель
         if (_currentTarget == deadTransform)
         {
             StartReturningHome();
@@ -494,29 +459,24 @@ public class NeutralAI : MonoBehaviourPun
     private void CheckForNearbyPlayers()
     {
         if (_hasAggro || _currentState == State.Returning) return;
-
-        Debug.Log($"Проверяем игроков в радиусе {detectionRadius}. Позиция: {transform.position}");
     
-        Collider[] nearbyPlayers = Physics.OverlapSphere(transform.position, detectionRadius);
-        Debug.Log($"Найдено коллайдеров: {nearbyPlayers.Length}");
+        Collider[] hitColliders = new Collider[10];
+        int numColliders = Physics.OverlapSphereNonAlloc(transform.position, detectionRadius, hitColliders);
     
-        foreach (Collider collider in nearbyPlayers)
+        for (int i = 0; i < numColliders; i++)
         {
-            Debug.Log($"Проверяем коллайдер: {collider.name}, тег: {collider.tag}");
+            Collider hitCollider = hitColliders[i];
         
-            if (collider.CompareTag(playerTag))
+            if (hitCollider.CompareTag(playerTag))
             {
-                Transform player = collider.transform;
+                Transform player = hitCollider.transform;
             
-                // Проверяем что игрок живой
                 Health playerHealth = player.GetComponent<Health>();
                 if (playerHealth != null && playerHealth.GetHealth() <= 0) 
                 {
                     Debug.Log($"Игрок {player.name} мертв, пропускаем");
                     continue;
                 }
-            
-                Debug.Log($"Игрок {player.name} обнаружен в радиусе, начинаем преследование");
                 SetAggro(player);
                 break;
             }
@@ -533,7 +493,6 @@ public class NeutralAI : MonoBehaviourPun
         
         UnsubscribeFromTargetDeath();
     
-        // ОТМЕНА РЕГИСТРАЦИИ В ГРУППЕ
         if (_assignedGroup != null)
         {
             _assignedGroup.UnregisterNeutral(this);
@@ -546,7 +505,6 @@ public class NeutralAI : MonoBehaviourPun
 
     private void OnDrawGizmosSelected()
     {
-        // Визуализация состояний
         switch (_currentState)
         {
             case State.Idle:
