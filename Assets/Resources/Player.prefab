@@ -48,6 +48,7 @@ GameObject:
   - component: {fileID: 2541226992782326041}
   - component: {fileID: 6286520446211169191}
   - component: {fileID: -8546888221127295351}
+  - component: {fileID: -5899585894373312611}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -228,6 +229,18 @@ MonoBehaviour:
   fogWar: {fileID: 0}
   visibility: 0
   additionalRadius: 0
+--- !u!114 &-5899585894373312611
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1270568247751947843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 138c4ed3554141c0b4de4dca5cfb1cdb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInfo
 --- !u!1 &5183457640143922165
 GameObject:
   m_ObjectHideFlags: 0
@@ -333,11 +346,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Rifle
   weaponName: Weapon
   damage: 10
-  useRate: 0.5
-  fireRate: 0.5
-  bulletPrefab: {fileID: 8676748316216568400, guid: edf969545ecf60c40b0c176d35622401, type: 3}
+  useCooldown: 0.5
+  bulletPrefab: {fileID: 9654448653110836, guid: a8b89ecf864034a408729aef2c413cfc, type: 3}
   shootPoint: {fileID: 8426969319650657826}
-  bulletForce: 30
+  bulletForce: 60
   bulletLifetime: 3
 --- !u!1 &5294840518876587065
 GameObject:

@@ -41,6 +41,16 @@ MonoBehaviour:
   - RespawnSpaceship
   - TakeDamage
   - TakeDamageRPC
+  - DamageFlashRPC
+  - OnGroupAggroTriggeredRPC
+  - RequestOwnershipRPC
+  - SyncAIStateRPC
+  - NotifyPlayerSpawned
+  - RequestSpawnSync
+  - SpawnPlayerForClient
+  - RPC_Shoot
+  - RPC_TakeDamage
+  - RPC_SetAggro
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1
