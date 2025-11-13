@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 339595163696148100}
   - component: {fileID: 2610013963538768444}
   - component: {fileID: 2623498727251175606}
+  - component: {fileID: 4198853647081133990}
   m_Layer: 0
   m_Name: Bullet
   m_TagString: Untagged
@@ -154,9 +155,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Weapon.Utils.PhotonBullet
   damage: 10
-  ownerActorNumber: -1
-  bulletForce: 10
   lifetime: 3
+  owner: {fileID: 0}
 --- !u!114 &2623498727251175606
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -175,7 +175,24 @@ MonoBehaviour:
   Synchronization: 3
   OwnershipTransfer: 0
   observableSearch: 2
-  ObservedComponents: []
+  ObservedComponents:
+  - {fileID: 4198853647081133990}
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
+--- !u!114 &4198853647081133990
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9654448653110836}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 627855c7f81362d41938ffe0b1475957, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.PhotonTransformView
+  m_SynchronizePosition: 1
+  m_SynchronizeRotation: 1
+  m_SynchronizeScale: 0
+  m_UseLocal: 1

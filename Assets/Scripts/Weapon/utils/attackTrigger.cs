@@ -1,23 +1,44 @@
 using UnityEngine;
+using Core.Interfaces;
 
-public class AttackTrigger : MonoBehaviour
+namespace Core.Combat
 {
-    private NeutralAI _owner;
-
-    private void Awake()
+    /// <summary>
+    /// Универсальный триггер атаки.
+    /// Работает как для нейтралов, так и для игроков, реализующих IAttackableZoneHandler.
+    /// </summary>
+    [RequireComponent(typeof(Collider))]
+    public class AttackTrigger : MonoBehaviour
     {
-        _owner = GetComponentInParent<NeutralAI>();
-    }
+        private IAttackableZoneHandler _owner;
 
-    private void OnTriggerEnter(Collider other)
-    {
-        if (other.CompareTag(_owner.playerTag))
-            _owner.OnEnterAttackRange(other.transform);
-    }
+        private void Awake()
+        {
+            _owner = GetComponentInParent<IAttackableZoneHandler>();
+            if (_owner == null)
+            {
+                Debug.LogError($"[{name}] AttackTrigger: родитель не реализует IAttackableZoneHandler!");
+            }
 
-    private void OnTriggerExit(Collider other)
-    {
-        if (other.CompareTag(_owner.playerTag))
-            _owner.OnExitAttackRange(other.transform);
+            var collider = GetComponent<Collider>();
+            if (collider != null)
+                collider.isTrigger = true;
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if (_owner == null) return;
+
+            if (other.CompareTag(_owner.TargetTag))
+                _owner.OnEnterAttackRange(other.transform);
+        }
+
+        private void OnTriggerExit(Collider other)
+        {
+            if (_owner == null) return;
+
+            if (other.CompareTag(_owner.TargetTag))
+                _owner.OnExitAttackRange(other.transform);
+        }
     }
 }

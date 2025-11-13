@@ -1,34 +1,37 @@
 ﻿using UnityEngine;
-using Core.Interfaces;
+using Core.Components;
+using Photon.Pun;
 
 namespace Weapon.Base
 {
-    /// <summary>
-    /// Класс для ближнего боя — без перезарядки.
-    /// </summary>
     public class MeleeWeapon : Weapon
     {
         [Header("Melee Weapon Settings")]
         public float attackRange = 2f;
         public LayerMask hitMask;
 
+        private PhotonView _pv;
+
+        private void Awake()
+        {
+            _pv = GetComponentInParent<PhotonView>();
+        }
+
         public override void Use()
         {
-            if (!CanUse()) return;
+            if (!CanUse() || !_pv.IsMine) return;
 
             if (Physics.Raycast(transform.position, transform.forward, out RaycastHit hit, attackRange, hitMask))
             {
-                if (hit.collider.TryGetComponent(out IDamageable target))
+                if (hit.collider.TryGetComponent(out Health targetHealth))
                 {
-                    target.TakeDamage(damage);
-                    Debug.Log($"Hit {hit.collider.name} with {weaponName}");
+                    var targetView = targetHealth.GetComponent<PhotonView>();
+                    if (targetView != null)
+                        targetView.RPC("TakeDamageRPC", RpcTarget.All, damage, _pv.ViewID);
+                    else
+                        targetHealth.TakeDamage(damage, _pv.transform);
                 }
             }
-            else
-            {
-                Debug.Log($"{weaponName} swing missed");
-            }
-
             MarkUse();
         }
     }

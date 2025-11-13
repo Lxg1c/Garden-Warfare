@@ -5,16 +5,15 @@ using UnityEngine;
 namespace Core.Components
 {
     /// <summary>
-    /// Универсальный Health:
-    /// - реализует IDamageable.TakeDamage(float)
-    /// - имеет RPC TakeDamageRPC для вызовов по сети (может передавать attackerViewId)
-    /// - вызывает событие OnDamaged(attacker) после получения урона
+    /// Универсальный Health для сетевого мира:
+    /// - Урон рассчитывается только у MasterClient (авторитет)
+    /// - Состояние синхронизируется со всеми через RPC
     /// </summary>
     public class Health : MonoBehaviourPun, IDamageable
     {
         [SerializeField] private float maxHealth = 100f;
         private float _currentHealth;
-        
+
         // Events
         public delegate void DamageEvent(Transform attacker);
         public event DamageEvent OnDamaged;
@@ -30,25 +29,29 @@ namespace Core.Components
         // -----------------------
         // Интерфейс (локальный вызов)
         // -----------------------
-        // Это метод, который требует IDamageable.
-        // Вызывай именно его в оффлайне / локально (или из игрового кода),
-        // он решит — применить урон локально или отправить запрос на авторитет по сети.
         public void TakeDamage(float amount, Transform attacker = null)
         {
-            // Локальный вызов без информации об атакующем
-            // В сетевом варианте лучше вызывать RPC с attackerViewId, но для упрощения этот метод применяет урон локально,
-            // или, если нужно, ты можешь здесь посылать RPC к авторитету (по архитектуре проекта).
-            ApplyDamage(amount, attacker);
+            // Только MasterClient инициирует сетевой процесс урона
+            if (PhotonNetwork.IsMasterClient)
+            {
+                var attackerView = attacker ? attacker.GetComponent<PhotonView>() : null;
+                int attackerId = attackerView != null ? attackerView.ViewID : -1;
+
+                // Приводим amount к int при отправке (RPC ожидает Int32)
+                int dmgToSend = Mathf.CeilToInt(amount);
+                photonView.RPC(nameof(TakeDamageRPC), RpcTarget.All, dmgToSend, attackerId);
+            }
         }
 
         // -----------------------
-        // RPC: сетевой вход (выполняется на целевом/авторитетном экземпляре)
+        // RPC: выполняется на всех
+        // IMPORTANT: сигнатура должна соответствовать типам, которые мы посылаем!
+        // В нашем проекте мы посылаем (int damage, int attackerViewId)
         // -----------------------
-        // Называем метод явно TakeDamageRPC, чтобы не путаться с интерфейсным TakeDamage.
         [PunRPC]
-        private void TakeDamageRPC(float damage, int attackerViewId = -1, PhotonMessageInfo info = default)
+        public void TakeDamageRPC(int damage, int attackerViewId = -1, PhotonMessageInfo info = default)
         {
-            Debug.Log($"[{name}] TakeDamageRPC called. dmg={damage}, attackerViewId={attackerViewId}, sender={(info.Sender != null ? info.Sender.NickName : "unknown")}");
+            // Восстанавливаем трансформ атакующего по viewId (если есть)
             Transform attacker = null;
             if (attackerViewId != -1)
             {
@@ -56,40 +59,34 @@ namespace Core.Components
                 if (av != null) attacker = av.transform;
             }
 
+            // Приводим damage (int) к float для внутренней логики
             ApplyDamage(damage, attacker);
         }
 
         // -----------------------
-        // Внутренняя логика применения урона (общая)
+        // Внутренняя логика урона
         // -----------------------
-        private void ApplyDamage(float damage, Transform attacker)
+        private void ApplyDamage(int damage, Transform attacker)
         {
             if (_currentHealth <= 0f)
             {
-                Debug.LogWarning($"[{name}] ApplyDamage ignored because already dead.");
+                Debug.LogWarning($"[{name}] ApplyDamage ignored — already dead.");
                 return;
             }
 
             _currentHealth -= damage;
-            Debug.Log($"[{name}] took {damage} damage. HP now {_currentHealth}");
+            Debug.Log($"[{name}] took {damage} dmg. HP: {_currentHealth}");
 
-            // Уведомляем подписчиков (AI и т.д.)
-            if (OnDamaged != null)
-            {
-                Debug.Log($"[{name}] invoking OnDamaged (attacker={(attacker!=null?attacker.name:"null")})");
-                OnDamaged.Invoke(attacker);
-            }
+            OnDamaged?.Invoke(attacker);
 
             if (_currentHealth <= 0f)
-            {
                 Die();
-            }
         }
-        
+
         private void Die()
         {
             Debug.Log($"[{name}] died!");
-            OnDeath?.Invoke(transform); // Передаем трансформ умершего
+            OnDeath?.Invoke(transform);
 
             var respawn = FindFirstObjectByType<RespawnManager>();
             if (respawn != null)
@@ -99,7 +96,6 @@ namespace Core.Components
 
             gameObject.SetActive(false);
         }
-
 
         public float GetHealth() => _currentHealth;
     }

@@ -31,7 +31,7 @@ namespace Player
 
         private void Update()
         {
-            if (!photonView.IsMine) return; // Только локальный игрок управляет своей камерой
+            if (!photonView.IsMine) return;
 
             HandleRotation();
         }

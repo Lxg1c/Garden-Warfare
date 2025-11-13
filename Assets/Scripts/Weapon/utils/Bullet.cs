@@ -1,30 +1,69 @@
 ﻿using UnityEngine;
-using Core.Interfaces;
 using Core.Components;
+using Photon.Pun;
 
 namespace Weapon.Utils
 {
-    public class Bullet : MonoBehaviour
+    [RequireComponent(typeof(Rigidbody))]
+    [RequireComponent(typeof(PhotonView))]
+    [DisallowMultipleComponent]
+    public class Bullet : MonoBehaviourPun
     {
+        [Header("Bullet Settings")]
         public int damage = 10;
-        public Transform owner;
+        public float lifetime = 3f;
+
+        [HideInInspector] public Transform owner;
+
+        private Rigidbody _rb;
+        private bool _initialized;
+
+        private void Awake()
+        {
+            _rb = GetComponent<Rigidbody>();
+            
+            if (photonView.InstantiationData != null && photonView.InstantiationData.Length > 0)
+            {
+                int ownerId = (int)photonView.InstantiationData[0];
+                PhotonView ownerView = PhotonView.Find(ownerId);
+                if (ownerView != null)
+                {
+                    owner = ownerView.transform;
+                    _initialized = true;
+                }
+            }
+            
+            if (PhotonNetwork.IsMasterClient)
+                Destroy(gameObject, lifetime);
+        }
+
+        private void Start()
+        {
+            if (photonView.IsMine && _rb != null && !_rb.isKinematic)
+            {
+                _rb.AddForce(transform.forward * 10f, ForceMode.Impulse);
+            }
+        }
 
         private void OnCollisionEnter(Collision collision)
         {
-            if (collision.gameObject.TryGetComponent(out IDamageable target))
+            if (owner != null && collision.transform == owner)
+                return;
+            
+            if (PhotonNetwork.IsMasterClient)
             {
-                target.TakeDamage(damage, owner);
-            }
+                if (collision.gameObject.TryGetComponent(out Health targetHealth))
+                {
+                    PhotonView ownerView = owner != null ? owner.GetComponent<PhotonView>() : null;
 
-            if (collision.gameObject.TryGetComponent(out Health health))
-            {
-                Debug.Log($"Bullet hit {collision.gameObject.name}, Health: {health.GetHealth()}");
+                    if (ownerView != null)
+                        targetHealth.photonView.RPC("TakeDamageRPC", RpcTarget.All, damage, ownerView.ViewID);
+                    else
+                        targetHealth.TakeDamage(damage, owner);
+                }
+
+                PhotonNetwork.Destroy(gameObject);
             }
-            else
-            {
-                Debug.Log($"Bullet hit {collision.gameObject.name}, но у него нет компонента Health.");
-            }
-            Destroy(gameObject);
         }
     }
 }

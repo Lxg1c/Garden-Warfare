@@ -1,535 +1,417 @@
+using System.Collections;
 using Core.Components;
+using Core.Interfaces;
+using Photon.Pun;
 using UnityEngine;
 using UnityEngine.AI;
-using Photon.Pun;
-using System.Collections;
+using UnityEngine.Serialization;
 
-
-[RequireComponent(typeof(NavMeshAgent))]
-[RequireComponent(typeof(Health))]
-public class NeutralAI : MonoBehaviourPun
+namespace AI
 {
-    [Header("Settings")]
-    public float detectionRadius = 6f;
-    public float attackRange = 4f;
-    public float aggressionDuration = 5f;
-    public float maxDistanceFromHome = 10f;
-    public Transform homePoint;
-    public string playerTag = "Player";
-    public static event System.Action<Transform, Transform> OnGroupAggro; 
-    public float groupAggroRadius = 4f;
-    
-    [Header("Group Settings")]
-    public SpawnPointGroup spawnGroup;
-    private SpawnPointGroup _assignedGroup;
-
-    [Header("Combat")]
-    public float attackDamage = 10f;
-    public float attackCooldown = 1f;
-
-    private NavMeshAgent _agent;
-    private Health _health;
-    private Transform _currentTarget;
-    private Vector3 _homePosition;
-    private float _lastAttackTime;
-    private float _aggroEndTime = 3f;
-    private bool _hasAggro;
-    private Coroutine _returnCoroutine;
-    private float _combatTimer;
-    private bool _combatTimerActive;
-    private float _lastDetectionTime;
-
-    // Простые состояния
-    private enum State { Idle, Chasing, Attacking, Returning }
-    private State _currentState = State.Idle;
-
-    private void Start()
+    [RequireComponent(typeof(NavMeshAgent))]
+    [RequireComponent(typeof(Health))]
+    [DisallowMultipleComponent]
+    public class NeutralAI : MonoBehaviourPun, IAttackableZoneHandler
     {
-        _agent = GetComponent<NavMeshAgent>();
-        _health = GetComponent<Health>();
-        _homePosition = homePoint != null ? homePoint.position : transform.position;
-        
-        _health.OnDamaged += OnDamaged;
-        
-        _agent.stoppingDistance = 3f;
-        _agent.autoBraking = true;
-        
-        if (spawnGroup != null)
+        [Header("Detection Settings")]
+        public float detectionRadius = 6f;
+        public float attackRange = 4f;
+        public float aggressionDuration = 5f;
+        public float maxDistanceFromHome = 10f;
+        public Transform homePoint;
+        public string playerTag = "Player";
+
+        [Header("Group Settings")]
+        [FormerlySerializedAs("spawnGroup")] 
+        public NeutralSpawnPointGroup neutralSpawnGroup;
+        private NeutralSpawnPointGroup _assignedGroup;
+
+        [Header("Combat Settings")]
+        public float attackDamage = 10f;
+        public float attackCooldown = 1f;
+
+        private NavMeshAgent _agent;
+        private Health _health;
+        private Transform _currentTarget;
+        private Vector3 _homePosition;
+        private float _lastAttackTime;
+        private float _aggroEndTime = 3f;
+        private bool _hasAggro;
+        private Coroutine _returnCoroutine;
+        private float _combatTimer;
+        private bool _combatTimerActive;
+        private float _lastDetectionTime;
+
+        public string TargetTag => playerTag;
+
+        // FSM состояния
+        private enum State { Idle, Chasing, Attacking, Returning }
+        private State _currentState = State.Idle;
+
+        // Событие группового агро
+        public static event System.Action<Transform, Transform> OnGroupAggro;
+
+        private void Start()
         {
-            spawnGroup.RegisterNeutral(this);
-        }
-        else
-        {
-            SpawnPointGroup parentGroup = GetComponentInParent<SpawnPointGroup>();
-            if (parentGroup != null)
+            _agent = GetComponent<NavMeshAgent>();
+            _health = GetComponent<Health>();
+            _homePosition = homePoint != null ? homePoint.position : transform.position;
+
+            _health.OnDamaged += OnDamaged;
+
+            _agent.stoppingDistance = 3f;
+            _agent.autoBraking = true;
+
+            // Регистрируемся в группе
+            if (neutralSpawnGroup != null)
+                neutralSpawnGroup.RegisterNeutral(this);
+            else
             {
-                parentGroup.RegisterNeutral(this);
+                var parentGroup = GetComponentInParent<NeutralSpawnPointGroup>();
+                if (parentGroup != null)
+                    parentGroup.RegisterNeutral(this);
             }
         }
-    }
-    
-    public void SetSpawnGroup(SpawnPointGroup group)
-    {
-        _assignedGroup = group;
-    }
 
-    private void Update()
-    {
-        CheckAttackRange();
-        
-        if (Time.time - _lastDetectionTime > 0.5f)
+        public void SetSpawnGroup(NeutralSpawnPointGroup group)
         {
-            CheckForNearbyPlayers();
-            _lastDetectionTime = Time.time;
+            _assignedGroup = group;
         }
-    
-        if (_combatTimerActive)
+
+        private void Update()
         {
-            _combatTimer -= Time.deltaTime;
-            if (_combatTimer <= 0f)
+            // Только мастер управляет поведением, остальные — получают позицию через PhotonTransformView
+            if (!PhotonNetwork.IsMasterClient) return;
+
+            CheckAttackRange();
+
+            if (Time.time - _lastDetectionTime > 0.5f)
             {
-                Debug.Log("Таймер боя истек, возвращаемся на базу");
+                CheckForNearbyPlayers();
+                _lastDetectionTime = Time.time;
+            }
+
+            if (_combatTimerActive)
+            {
+                _combatTimer -= Time.deltaTime;
+                if (_combatTimer <= 0f)
+                {
+                    StartReturningHome();
+                    _combatTimerActive = false;
+                }
+            }
+
+            switch (_currentState)
+            {
+                case State.Idle: UpdateIdle(); break;
+                case State.Chasing: UpdateChasing(); break;
+                case State.Attacking: UpdateAttacking(); break;
+                case State.Returning: UpdateReturning(); break;
+            }
+        }
+
+        private void CheckAttackRange()
+        {
+            if (_hasAggro && _currentTarget != null)
+            {
+                float dist = Vector3.Distance(transform.position, _currentTarget.position);
+
+                if (_currentState == State.Chasing && dist <= attackRange)
+                {
+                    _currentState = State.Attacking;
+                    _agent.isStopped = true;
+                }
+                else if (_currentState == State.Attacking && dist > attackRange)
+                {
+                    _currentState = State.Chasing;
+                    _agent.isStopped = false;
+                }
+            }
+        }
+
+        #region FSM States
+
+        private void UpdateIdle()
+        {
+            float distHome = Vector3.Distance(transform.position, _homePosition);
+            if (distHome > maxDistanceFromHome)
+            {
                 StartReturningHome();
-                _combatTimerActive = false;
+                return;
             }
-        }
-    
-        switch (_currentState)
-        {
-            case State.Idle:
-                UpdateIdle();
-                break;
-            case State.Chasing:
-                UpdateChasing();
-                break;
-            case State.Attacking:
-                UpdateAttacking();
-                break;
-            case State.Returning:
-                UpdateReturning();
-                break;
-        }
-    }
-    
-    public void OnGroupAggroTriggered(Transform aggroSource, Transform target)
-    {
-        if (aggroSource == transform)
-            return;
-        
-        Health targetHealth = target.GetComponent<Health>();
-        if (targetHealth != null && targetHealth.GetHealth() <= 0)
-            return;
 
-        if (_hasAggro && _currentTarget == target)
-        {
-            _aggroEndTime = Time.time + aggressionDuration;
-            _combatTimer = 3f;
-            return;
-        }
-
-        Debug.Log($"Получаем групповой агро от {aggroSource.name} на цель {target.name}");
-        SetAggro(target);
-    }
-    
-    private void CheckAttackRange()
-    {
-        if (_hasAggro && _currentTarget != null)
-        {
-            float distanceToTarget = Vector3.Distance(transform.position, _currentTarget.position);
-        
-            if (_currentState == State.Chasing && distanceToTarget <= attackRange)
-            {
-                _currentState = State.Attacking;
-                _agent.isStopped = true;
-            }
-            else if (_currentState == State.Attacking && distanceToTarget > attackRange)
+            if (_hasAggro && _currentTarget != null)
             {
                 _currentState = State.Chasing;
                 _agent.isStopped = false;
             }
         }
-    }
 
-    private void UpdateIdle()
-    {
-        float distanceFromHome = Vector3.Distance(transform.position, _homePosition);
-        if (distanceFromHome > maxDistanceFromHome)
+        private void UpdateChasing()
         {
-            StartReturningHome();
-            return;
-        }
-
-        if (_hasAggro && _currentTarget != null)
-        {
-            _currentState = State.Chasing;
-            _agent.isStopped = false;
-        }
-    }
-
-    private void UpdateChasing()
-    {
-        if (_currentTarget == null)
-        {
-            StartReturningHome();
-            return;
-        }
-
-        if (Time.time > _aggroEndTime)
-        {
-            StartReturningHome();
-            return;
-        }
-
-        float distanceToTarget = Vector3.Distance(transform.position, _currentTarget.position);
-        if (distanceToTarget <= attackRange)
-        {
-            _currentState = State.Attacking;
-            _agent.isStopped = true;
-        }
-        else
-        {
-            _agent.SetDestination(_currentTarget.position);
-        }
-    }
-
-    private void UpdateAttacking()
-    {
-        if (_currentTarget == null)
-        {
-            StartReturningHome();
-            return;
-        }
-
-        if (Time.time > _aggroEndTime)
-        {
-            StartReturningHome();
-            return;
-        }
-
-        float distanceToTarget = Vector3.Distance(transform.position, _currentTarget.position);
-        
-        if (distanceToTarget > attackRange)
-        {
-            _currentState = State.Chasing;
-            _agent.isStopped = false;
-            return;
-        }
-
-        RotateTowardsTarget();
-
-        if (Time.time >= _lastAttackTime + attackCooldown)
-        {
-            AttackTarget();
-        }
-    }
-
-    private void UpdateReturning()
-    {
-        float distanceToHome = Vector3.Distance(transform.position, _homePosition);
-        
-        if (distanceToHome <= 1f)
-        {
-            _agent.isStopped = true;
-            _currentState = State.Idle;
-            _hasAggro = false;
-            _currentTarget = null;
-            
-            if (_returnCoroutine != null)
+            if (_currentTarget == null || Time.time > _aggroEndTime)
             {
-                StopCoroutine(_returnCoroutine);
-                _returnCoroutine = null;
+                StartReturningHome();
+                return;
             }
-            return;
-        }
 
-        if (!_agent.hasPath || Vector3.Distance(_agent.destination, _homePosition) > 0.5f)
-        {
-            _agent.SetDestination(_homePosition);
-        }
-    }
-
-    private void StartReturningHome()
-    {
-        if (_currentState == State.Returning) return;
-    
-        _currentState = State.Returning;
-        _hasAggro = false;
-        _agent.isStopped = false;
-        _agent.SetDestination(_homePosition);
-    
-        UnsubscribeFromTargetDeath();
-        _combatTimerActive = false;
-    
-        if (_returnCoroutine != null)
-            StopCoroutine(_returnCoroutine);
-    
-        _returnCoroutine = StartCoroutine(ReturnHomeRoutine());
-    }
-
-    private IEnumerator ReturnHomeRoutine()
-    {
-        yield return new WaitForSeconds(0.5f);
-        
-        if (_currentState == State.Returning)
-        {
-            _agent.SetDestination(_homePosition);
-        }
-    }
-
-    private void SetAggro(Transform target)
-    {
-        Health targetHealth = target.GetComponent<Health>();
-        if (targetHealth != null && targetHealth.GetHealth() <= 0)
-        {
-            Debug.Log($"Цель {target.name} мертва, игнорируем агро");
-            return;
-        }
-
-        if (_hasAggro && _currentTarget == target)
-        {
-            _aggroEndTime = Time.time + aggressionDuration;
-            _combatTimer = 3f;
-            return;
-        }
-
-        Debug.Log($"SetAggro вызван с целью: {target.name}");
-    
-        UnsubscribeFromTargetDeath();
-    
-        _currentTarget = target;
-        _hasAggro = true;
-        _aggroEndTime = Time.time + aggressionDuration;
-
-        SubscribeToTargetDeath();
-
-        _combatTimer = 3f;
-        _combatTimerActive = true;
-        Debug.Log("Запущен таймер преследования: 3 секунды");
-
-        if (_returnCoroutine != null)
-        {
-            StopCoroutine(_returnCoroutine);
-            _returnCoroutine = null;
-        }
-
-        _currentState = State.Chasing;
-        _agent.isStopped = false;
-    
-        if (_assignedGroup != null)
-        {
-            _assignedGroup.NotifyGroupAggro(transform, target);
-        }
-        else if (spawnGroup != null)
-        {
-            spawnGroup.NotifyGroupAggro(transform, target);
-        }
-    }
-
-    private void RotateTowardsTarget()
-    {
-        if (_currentTarget == null) return;
-
-        Vector3 direction = (_currentTarget.position - transform.position).normalized;
-        direction.y = 0;
-        if (direction != Vector3.zero)
-        {
-            Quaternion targetRotation = Quaternion.LookRotation(direction);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 5f);
-        }
-    }
-
-    private void AttackTarget()
-    {
-        Debug.Log("Вызываем attack target");
-        if (_currentTarget == null) return;
-
-        Health targetHealth = _currentTarget.GetComponent<Health>();
-        if (targetHealth != null)
-        {
-            Debug.Log("Есть компонент здоровья");
-            if (PhotonNetwork.IsConnected && photonView != null)
+            float dist = Vector3.Distance(transform.position, _currentTarget.position);
+            if (dist <= attackRange)
             {
-                Debug.Log("Выполняем атаку по фотону");
-                int attackerViewId = photonView.ViewID;
-                PhotonView targetPhotonView = _currentTarget.GetComponent<PhotonView>();
-                if (targetPhotonView != null)
-                {
-                    Debug.Log($"Вызываем RPC атаки на цели {_currentTarget.name}");
-                    targetPhotonView.RPC("TakeDamageRPC", RpcTarget.All, attackDamage, attackerViewId);
-                }
-                else
-                {
-                    Debug.LogWarning($"У цели {_currentTarget.name} нет PhotonView!");
-                }
+                _currentState = State.Attacking;
+                _agent.isStopped = true;
             }
             else
             {
-                Debug.Log("Атакуем игрока (оффлайн)");
-                targetHealth.TakeDamage(attackDamage, transform);
+                _agent.SetDestination(_currentTarget.position);
             }
-    
-            Debug.Log($"Атаковал игрока! Урон: {attackDamage}");
-        }
-        else
-        {
-            Debug.LogWarning("У цели нет компонента Health!");
         }
 
-        _lastAttackTime = Time.time;
-        _aggroEndTime = Time.time + aggressionDuration;
-    }
-
-    private void OnDamaged(Transform attacker)
-    {
-        if (attacker != null)
+        private void UpdateAttacking()
         {
-            SetAggro(attacker);
-            StartCoroutine(DamageFlash());
-        
-            OnGroupAggro?.Invoke(transform, attacker);
+            if (_currentTarget == null || Time.time > _aggroEndTime)
+            {
+                StartReturningHome();
+                return;
+            }
+
+            float dist = Vector3.Distance(transform.position, _currentTarget.position);
+            if (dist > attackRange)
+            {
+                _currentState = State.Chasing;
+                _agent.isStopped = false;
+                return;
+            }
+
+            RotateTowardsTarget();
+
+            if (Time.time >= _lastAttackTime + attackCooldown)
+                AttackTarget();
         }
-    }
 
-    private IEnumerator DamageFlash()
-    {
-        var meshRenderer = GetComponent<Renderer>(); // Переименовал переменную
-        if (meshRenderer != null)
+        private void UpdateReturning()
         {
-            Color originalColor = meshRenderer.material.color;
-            meshRenderer.material.color = Color.red;
-            yield return new WaitForSeconds(0.2f);
-            meshRenderer.material.color = originalColor;
+            float distHome = Vector3.Distance(transform.position, _homePosition);
+
+            if (distHome <= 1f)
+            {
+                _agent.isStopped = true;
+                _currentState = State.Idle;
+                _hasAggro = false;
+                _currentTarget = null;
+
+                if (_returnCoroutine != null)
+                    StopCoroutine(_returnCoroutine);
+
+                return;
+            }
+
+            if (!_agent.hasPath || Vector3.Distance(_agent.destination, _homePosition) > 0.5f)
+                _agent.SetDestination(_homePosition);
         }
-    }
 
-    public void OnEnterAttackRange(Transform target)
-    {
-        if (_hasAggro && _currentTarget == target && _currentState == State.Chasing)
+        #endregion
+
+        #region Combat Logic
+
+        private void AttackTarget()
         {
-            _currentState = State.Attacking;
-            _agent.isStopped = true;
+            if (_currentTarget == null) return;
+            photonView.RPC(nameof(RPC_DoAttack), RpcTarget.All);
         }
-    }
 
-    public void OnExitAttackRange(Transform target)
-    {
-        if (_hasAggro && _currentTarget == target && _currentState == State.Attacking)
+        [PunRPC]
+        private void RPC_DoAttack()
         {
+            if (_currentTarget == null) return;
+
+            var targetHealth = _currentTarget.GetComponent<Health>();
+            if (targetHealth == null) return;
+
+            targetHealth.TakeDamage(attackDamage, transform);
+            _lastAttackTime = Time.time;
+            _aggroEndTime = Time.time + aggressionDuration;
+        }
+
+        private void RotateTowardsTarget()
+        {
+            if (_currentTarget == null) return;
+            Vector3 dir = (_currentTarget.position - transform.position).normalized;
+            dir.y = 0;
+
+            if (dir != Vector3.zero)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(dir);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 5f);
+            }
+        }
+
+        #endregion
+
+        #region Aggro System
+
+        public void OnGroupAggroTriggered(Transform aggroSource, Transform target)
+        {
+            if (aggroSource == transform) return;
+
+            Health th = target.GetComponent<Health>();
+            if (th != null && th.GetHealth() <= 0) return;
+
+            if (_hasAggro && _currentTarget == target)
+            {
+                _aggroEndTime = Time.time + aggressionDuration;
+                _combatTimer = 3f;
+                return;
+            }
+
+            SetAggro(target);
+        }
+
+        private void SetAggro(Transform target)
+        {
+            if (target == null) return;
+
+            var th = target.GetComponent<Health>();
+            if (th != null && th.GetHealth() <= 0) return;
+
+            UnsubscribeFromTargetDeath();
+            _currentTarget = target;
+            _hasAggro = true;
+            _aggroEndTime = Time.time + aggressionDuration;
+
+            SubscribeToTargetDeath();
+
+            _combatTimer = 3f;
+            _combatTimerActive = true;
+
             _currentState = State.Chasing;
             _agent.isStopped = false;
-        }
-    }
-    
-    private void SubscribeToTargetDeath()
-    {
-        if (_currentTarget != null)
-        {
-            Health targetHealth = _currentTarget.GetComponent<Health>();
-            if (targetHealth != null)
-            {
-                targetHealth.OnDeath += OnTargetDied;
-                Debug.Log($"Подписались на смерть цели: {_currentTarget.name}");
-            }
-        }
-    }
 
-    private void UnsubscribeFromTargetDeath()
-    {
-        if (_currentTarget != null)
-        {
-            Health targetHealth = _currentTarget.GetComponent<Health>();
-            if (targetHealth != null)
-            {
-                targetHealth.OnDeath -= OnTargetDied;
-                Debug.Log($"Отписались от смерти цели: {_currentTarget.name}");
-            }
+            (_assignedGroup ?? neutralSpawnGroup)?.NotifyGroupAggro(transform, target);
         }
-    }
 
-    private void OnTargetDied(Transform deadTransform)
-    {
-        Debug.Log($"Цель {deadTransform.name} умерла, возвращаемся на базу");
-    
-        if (_currentTarget == deadTransform)
+        private void StartReturningHome()
         {
-            StartReturningHome();
+            if (_currentState == State.Returning) return;
+
+            _currentState = State.Returning;
+            _hasAggro = false;
+            _agent.isStopped = false;
+            _agent.SetDestination(_homePosition);
+
+            UnsubscribeFromTargetDeath();
+            _combatTimerActive = false;
+
+            if (_returnCoroutine != null)
+                StopCoroutine(_returnCoroutine);
+
+            _returnCoroutine = StartCoroutine(ReturnHomeRoutine());
         }
-    }
-    
-    private void CheckForNearbyPlayers()
-    {
-        if (_hasAggro || _currentState == State.Returning) return;
-    
-        Collider[] hitColliders = new Collider[10];
-        int numColliders = Physics.OverlapSphereNonAlloc(transform.position, detectionRadius, hitColliders);
-    
-        for (int i = 0; i < numColliders; i++)
+
+        private IEnumerator ReturnHomeRoutine()
         {
-            Collider hitCollider = hitColliders[i];
-        
-            if (hitCollider.CompareTag(playerTag))
+            yield return new WaitForSeconds(0.5f);
+            if (_currentState == State.Returning)
+                _agent.SetDestination(_homePosition);
+        }
+
+        #endregion
+
+        #region Damage & Death
+
+        private void OnDamaged(Transform attacker)
+        {
+            if (attacker == null) return;
+            SetAggro(attacker);
+            StartCoroutine(DamageFlash());
+            OnGroupAggro?.Invoke(transform, attacker);
+        }
+
+        private IEnumerator DamageFlash()
+        {
+            var mesh = GetComponent<Renderer>();
+            if (mesh == null) yield break;
+
+            Color original = mesh.material.color;
+            mesh.material.color = Color.red;
+            yield return new WaitForSeconds(0.2f);
+            mesh.material.color = original;
+        }
+
+        private void OnTargetDied(Transform dead)
+        {
+            if (_currentTarget == dead)
+                StartReturningHome();
+        }
+
+        private void SubscribeToTargetDeath()
+        {
+            if (_currentTarget == null) return;
+
+            var th = _currentTarget.GetComponent<Health>();
+            if (th != null) th.OnDeath += OnTargetDied;
+        }
+
+        private void UnsubscribeFromTargetDeath()
+        {
+            if (_currentTarget == null) return;
+
+            var th = _currentTarget.GetComponent<Health>();
+            if (th != null) th.OnDeath -= OnTargetDied;
+        }
+
+        #endregion
+
+        private void CheckForNearbyPlayers()
+        {
+            if (_hasAggro || _currentState == State.Returning) return;
+
+            Collider[] hits = new Collider[10];
+            int count = Physics.OverlapSphereNonAlloc(transform.position, detectionRadius, hits);
+
+            for (int i = 0; i < count; i++)
             {
-                Transform player = hitCollider.transform;
-            
-                Health playerHealth = player.GetComponent<Health>();
-                if (playerHealth != null && playerHealth.GetHealth() <= 0) 
+                var hit = hits[i];
+                if (!hit.CompareTag(playerTag)) continue;
+
+                var health = hit.GetComponent<Health>();
+                if (health != null && health.GetHealth() > 0)
                 {
-                    Debug.Log($"Игрок {player.name} мертв, пропускаем");
-                    continue;
+                    SetAggro(hit.transform);
+                    break;
                 }
-                SetAggro(player);
-                break;
             }
         }
-    }
-
-    private void OnDestroy()
-    {
-        if (_health != null)
-            _health.OnDamaged -= OnDamaged;
-    
-        if (_returnCoroutine != null)
-            StopCoroutine(_returnCoroutine);
         
-        UnsubscribeFromTargetDeath();
-    
-        if (_assignedGroup != null)
+        public void OnEnterAttackRange(Transform target)
         {
-            _assignedGroup.UnregisterNeutral(this);
+            if (_hasAggro && _currentTarget == target && _currentState == State.Chasing)
+            {
+                _currentState = State.Attacking;
+                _agent.isStopped = true;
+            }
         }
-        else if (spawnGroup != null)
-        {
-            spawnGroup.UnregisterNeutral(this);
-        }
-    }
 
-    private void OnDrawGizmosSelected()
-    {
-        switch (_currentState)
+        public void OnExitAttackRange(Transform target)
         {
-            case State.Idle:
-                Gizmos.color = Color.green;
-                break;
-            case State.Chasing:
-                Gizmos.color = Color.yellow;
-                break;
-            case State.Attacking:
-                Gizmos.color = Color.red;
-                break;
-            case State.Returning:
-                Gizmos.color = Color.blue;
-                break;
+            if (_hasAggro && _currentTarget == target && _currentState == State.Attacking)
+            {
+                _currentState = State.Chasing;
+                _agent.isStopped = false;
+            }
         }
-        Gizmos.DrawWireSphere(transform.position, 1f);
 
-        Gizmos.color = Color.white;
-        Gizmos.DrawWireSphere(transform.position, detectionRadius);
-        
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, attackRange);
-        
-        Gizmos.color = Color.cyan;
-        Gizmos.DrawWireSphere(_homePosition, 0.5f);
-        Gizmos.DrawWireSphere(_homePosition, maxDistanceFromHome);
+        private void OnDestroy()
+        {
+            if (_health != null)
+                _health.OnDamaged -= OnDamaged;
+
+            UnsubscribeFromTargetDeath();
+
+            if (_assignedGroup != null)
+                _assignedGroup.UnregisterNeutral(this);
+            else if (neutralSpawnGroup != null)
+                neutralSpawnGroup.UnregisterNeutral(this);
+        }
     }
 }

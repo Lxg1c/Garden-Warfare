@@ -45,10 +45,10 @@ GameObject:
   - component: {fileID: 2380669862398004536}
   - component: {fileID: 424051046322108573}
   - component: {fileID: 7059976523720564212}
-  - component: {fileID: 2541226992782326041}
   - component: {fileID: 6286520446211169191}
   - component: {fileID: -8546888221127295351}
   - component: {fileID: -5899585894373312611}
+  - component: {fileID: -895290745860438287}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -164,43 +164,10 @@ MonoBehaviour:
   OwnershipTransfer: 0
   observableSearch: 2
   ObservedComponents:
-  - {fileID: 2541226992782326041}
+  - {fileID: -895290745860438287}
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
---- !u!114 &2541226992782326041
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1270568247751947843}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8efc6b1d64977384eb3405357896c656, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.PhotonTransformViewClassic
-  m_PositionModel:
-    SynchronizeEnabled: 1
-    TeleportEnabled: 1
-    TeleportIfDistanceGreaterThan: 3
-    InterpolateOption: 2
-    InterpolateMoveTowardsSpeed: 1
-    InterpolateLerpSpeed: 1
-    ExtrapolateOption: 0
-    ExtrapolateSpeed: 1
-    ExtrapolateIncludingRoundTripTime: 1
-    ExtrapolateNumberOfStoredPositions: 1
-  m_RotationModel:
-    SynchronizeEnabled: 1
-    InterpolateOption: 1
-    InterpolateRotateTowardsSpeed: 180
-    InterpolateLerpSpeed: 5
-  m_ScaleModel:
-    SynchronizeEnabled: 0
-    InterpolateOption: 0
-    InterpolateMoveTowardsSpeed: 1
-    InterpolateLerpSpeed: 0
 --- !u!114 &6286520446211169191
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -241,6 +208,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 138c4ed3554141c0b4de4dca5cfb1cdb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInfo
+--- !u!114 &-895290745860438287
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1270568247751947843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 627855c7f81362d41938ffe0b1475957, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.PhotonTransformView
+  m_SynchronizePosition: 1
+  m_SynchronizeRotation: 1
+  m_SynchronizeScale: 0
+  m_UseLocal: 1
 --- !u!1 &5183457640143922165
 GameObject:
   m_ObjectHideFlags: 0
@@ -346,7 +329,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Rifle
   weaponName: Weapon
   damage: 10
-  useCooldown: 0.5
+  useRate: 0.5
   bulletPrefab: {fileID: 9654448653110836, guid: a8b89ecf864034a408729aef2c413cfc, type: 3}
   shootPoint: {fileID: 8426969319650657826}
   bulletForce: 60
