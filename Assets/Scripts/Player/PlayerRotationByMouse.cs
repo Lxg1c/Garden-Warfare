@@ -7,23 +7,32 @@ namespace Player
     [RequireComponent(typeof(PhotonView))]
     public class PlayerRotationByMouse : MonoBehaviourPun
     {
+        [Header("Camera & Layers")]
         [SerializeField] private Camera mainCamera;
         [SerializeField] private LayerMask groundLayer;
-        [SerializeField] private float rotationSpeed = 10f;
+
+        [Header("Rotation Settings")]
+        [SerializeField] private float rotationSpeed = 15f;
+
+        [Header("Aim Debug")]
+        [SerializeField] private bool showAimDirection = true;
+        [SerializeField] private float aimLineLength = 3f;
+        [SerializeField] private Color aimLineColor = Color.green;
+
+        private Vector3 _aimDirection = Vector3.forward;
+
+        public Vector3 AimDirection => _aimDirection.normalized; // доступно для оружия
 
         private void Start()
         {
-            // Камера должна быть активна только у локального игрока
             if (photonView.IsMine)
             {
                 if (mainCamera == null)
-                {
                     mainCamera = Camera.main;
-                }
             }
             else
             {
-                // Удаляем/выключаем камеру у чужих игроков
+                // Убираем чужую камеру
                 if (mainCamera != null)
                     mainCamera.gameObject.SetActive(false);
             }
@@ -32,31 +41,38 @@ namespace Player
         private void Update()
         {
             if (!photonView.IsMine) return;
-
             HandleRotation();
+            if (showAimDirection)
+                DrawAimDirection();
         }
 
         private void HandleRotation()
         {
             Vector2 mouseScreenPos = Mouse.current.position.ReadValue();
-
             Ray ray = mainCamera.ScreenPointToRay(mouseScreenPos);
 
             if (Physics.Raycast(ray, out RaycastHit hit, 1000f, groundLayer))
             {
+                // Цель в XZ-плоскости
                 Vector3 targetPoint = hit.point;
+                Vector3 flatDirection = targetPoint - transform.position;
+                flatDirection.y = 0; // оставляем только горизонтальную составляющую
 
-                Vector3 direction = (targetPoint - transform.position);
-                direction.y = 0;
-
-                if (direction.sqrMagnitude > 0.001f)
+                if (flatDirection.sqrMagnitude > 0.001f)
                 {
-                    Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
+                    _aimDirection = flatDirection.normalized;
+
+                    Quaternion targetRotation = Quaternion.LookRotation(_aimDirection, Vector3.up);
                     transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
                 }
-
-                Debug.DrawLine(transform.position, targetPoint, Color.red);
             }
+        }
+
+        private void DrawAimDirection()
+        {
+            Vector3 start = transform.position + Vector3.up * 0.1f;
+            Vector3 end = start + _aimDirection * aimLineLength;
+            Debug.DrawLine(start, end, aimLineColor);
         }
     }
 }
