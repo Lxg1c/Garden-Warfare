@@ -50,20 +50,17 @@ namespace Weapon.Utils
             if (owner != null && collision.transform == owner)
                 return;
             
-            if (PhotonNetwork.IsMasterClient)
+            if (collision.gameObject.TryGetComponent(out Health targetHealth))
             {
-                if (collision.gameObject.TryGetComponent(out Health targetHealth))
-                {
-                    PhotonView ownerView = owner != null ? owner.GetComponent<PhotonView>() : null;
+                PhotonView ownerView = owner != null ? owner.GetComponent<PhotonView>() : null;
 
-                    if (ownerView != null)
-                        targetHealth.photonView.RPC("TakeDamageRPC", RpcTarget.All, damage, ownerView.ViewID);
-                    else
-                        targetHealth.TakeDamage(damage, owner);
-                }
-
-                PhotonNetwork.Destroy(gameObject);
+                if (ownerView != null)
+                    targetHealth.photonView.RPC("TakeDamageRPC", RpcTarget.All, damage, ownerView.ViewID);
+                else
+                    targetHealth.TakeDamage(damage, owner);
             }
+
+            PhotonNetwork.Destroy(gameObject);
         }
     }
 }

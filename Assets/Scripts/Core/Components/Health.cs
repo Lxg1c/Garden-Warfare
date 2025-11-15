@@ -1,4 +1,5 @@
 ﻿using Core.Interfaces;
+using Core.Settings;
 using Photon.Pun;
 using UnityEngine;
 
@@ -13,6 +14,7 @@ namespace Core.Components
     {
         [SerializeField] private float maxHealth = 100f;
         private float _currentHealth;
+        public float MaxHealth => maxHealth;
 
         // Events
         public delegate void DamageEvent(Transform attacker);
@@ -97,6 +99,12 @@ namespace Core.Components
             gameObject.SetActive(false);
         }
 
+        // Setter && Getter
         public float GetHealth() => _currentHealth;
+        
+        public void SetHealth(float value)
+        {
+            _currentHealth = Mathf.Clamp(value, 0, maxHealth);
+        }
     }
 }
