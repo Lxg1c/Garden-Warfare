@@ -6,12 +6,12 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Serialization;
 
-namespace AI
+namespace AI.Neutral
 {
     [RequireComponent(typeof(NavMeshAgent))]
     [RequireComponent(typeof(Health))]
     [DisallowMultipleComponent]
-    public class NeutralAI : MonoBehaviourPun, IAttackableZoneHandler
+    public class Neutral : MonoBehaviourPun, IAttackableZoneHandler
     {
         [Header("Detection Settings")]
         public float detectionRadius = 6f;

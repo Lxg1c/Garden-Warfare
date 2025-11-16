@@ -1,13 +1,13 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-namespace AI
+namespace AI.Neutral
 {
     public class NeutralSpawnPointGroup : MonoBehaviour
     {
-        public List<NeutralAI> spawnedNeutrals = new();
+        public List<Neutral> spawnedNeutrals = new();
 
-        public void RegisterNeutral(NeutralAI neutral)
+        public void RegisterNeutral(Neutral neutral)
         {
             if (!spawnedNeutrals.Contains(neutral))
             {
@@ -16,7 +16,7 @@ namespace AI
             }
         }
 
-        public void UnregisterNeutral(NeutralAI neutral)
+        public void UnregisterNeutral(Neutral neutral)
         {
             if (spawnedNeutrals.Contains(neutral))
                 spawnedNeutrals.Remove(neutral);

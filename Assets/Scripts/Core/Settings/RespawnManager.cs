@@ -1,8 +1,10 @@
-// Assets/Scripts/Core/Managers/RespawnManager.cs
 using System.Collections;
 using System.Collections.Generic;
 using Photon.Pun;
 using UnityEngine;
+using AI.Neutral;
+using Player.Components;
+
 
 namespace Core.Settings
 {
@@ -133,7 +135,7 @@ namespace Core.Settings
             if (obj.GetComponent<CharacterController>() != null) return true;
             if (obj.GetComponent<UnityEngine.InputSystem.PlayerInput>() != null) return true;
             // NeutralAI — не игрок
-            if (obj.GetComponent<AI.NeutralAI>() != null) return false;
+            if (obj.GetComponent<Neutral>() != null) return false;
             return false;
         }
 

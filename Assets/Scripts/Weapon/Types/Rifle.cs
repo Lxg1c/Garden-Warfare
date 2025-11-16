@@ -38,8 +38,6 @@ namespace Weapon.Types
                 bulletComponent.owner = _photonView.transform;
             }
 
-            Destroy(bullet, bulletLifetime);
-
             MarkUse();
         }
 

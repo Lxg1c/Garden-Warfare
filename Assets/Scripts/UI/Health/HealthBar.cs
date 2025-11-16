@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
-namespace UI
+namespace UI.HealthBar
 {
     public class HealthBar : MonoBehaviour
     {
@@ -11,10 +11,6 @@ namespace UI
         {
             slider.maxValue = maxHealth;
             slider.value = health;
-
-            // Оставлять ли полосу видимой всегда?
-            // Если только при повреждении — раскомментируй:
-            // slider.gameObject.SetActive(health < maxHealth);
         }
     }
 }
