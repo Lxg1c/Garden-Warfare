@@ -33,7 +33,7 @@ namespace DefaultNamespace
         private void SpawnPlayer()
         {
             Transform playerSpawnPoint = GetPlayerSpawnPoint();
-            
+
             if (playerSpawnPoint == null)
             {
                 Debug.LogError("Failed to get spawn point for player! Using fallback.");
@@ -41,23 +41,23 @@ namespace DefaultNamespace
             }
 
             GameObject newPlayer = PhotonNetwork.Instantiate(
-                playerPrefab.name, 
-                playerSpawnPoint.position, 
+                playerPrefab.name,
+                playerSpawnPoint.position,
                 playerSpawnPoint.rotation
             );
-            
+
             if (newPlayer.GetComponent<PhotonView>().IsMine)
             {
                 CreatePersonalCameraForPlayer(newPlayer);
                 SetupFogWar(newPlayer);
-                
+
                 // Сохраняем ID точки спавна в игроке для респавна
                 var playerInfo = newPlayer.GetComponent<PlayerInfo>();
                 if (playerInfo != null)
                 {
                     playerInfo.SetSpawnPoint(playerSpawnPoint);
                 }
-                
+
                 Debug.Log($"Player spawned at: {playerSpawnPoint.name}");
             }
         }
@@ -67,7 +67,7 @@ namespace DefaultNamespace
             if (SpawnPointManager.Instance == null)
             {
                 Debug.LogError("SpawnPointManager instance is null!");
-                
+
                 SpawnPointManager manager = FindObjectOfType<SpawnPointManager>();
                 if (manager != null)
                 {
@@ -79,12 +79,12 @@ namespace DefaultNamespace
                     return fallbackSpawnPoint != null ? fallbackSpawnPoint : transform;
                 }
             }
-            
+
             if (PhotonNetwork.IsConnected && PhotonNetwork.LocalPlayer != null)
             {
                 return SpawnPointManager.Instance.GetSpawnPointForPlayer(PhotonNetwork.LocalPlayer.ActorNumber);
             }
-            
+
             Debug.LogWarning("Photon not connected, using fallback spawn");
             return fallbackSpawnPoint != null ? fallbackSpawnPoint : transform;
         }
@@ -104,7 +104,7 @@ namespace DefaultNamespace
                 Debug.LogError("Camera prefab is not assigned!");
             }
         }
-        
+
         private void SetupFogWar(GameObject player)
         {
             if (fogWar != null)

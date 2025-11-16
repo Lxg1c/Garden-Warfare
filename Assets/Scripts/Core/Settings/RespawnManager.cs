@@ -1,7 +1,8 @@
+using AI;
+using Core.Components;
+using Photon.Pun;
 using System.Collections;
 using UnityEngine;
-using Photon.Pun;
-using AI;
 
 public class RespawnManager : MonoBehaviourPunCallbacks
 {
@@ -9,7 +10,7 @@ public class RespawnManager : MonoBehaviourPunCallbacks
 
     [Header("Настройки респавна")]
     public float respawnDelay = 3f;
-    
+
     private void Awake()
     {
         if (_instance == null)
@@ -37,10 +38,13 @@ public class RespawnManager : MonoBehaviourPunCallbacks
 
     private bool IsPlayer(GameObject obj)
     {
+        // Убедитесь, что AI у вас в пространстве имен AI, если это не так, удалите AI. из следующей строки
+        if (obj.GetComponent<NeutralAI>() != null) return false; // Проверяем AI первыми, так как они могут быть "объектами"
+
         if (obj.CompareTag("Player")) return true;
         if (obj.GetComponent<CharacterController>() != null) return true;
         if (obj.GetComponent<UnityEngine.InputSystem.PlayerInput>() != null) return true;
-        if (obj.GetComponent<NeutralAI>() != null) return false;
+
         return false;
     }
 
@@ -51,7 +55,7 @@ public class RespawnManager : MonoBehaviourPunCallbacks
         if (deadPlayer != null)
         {
             Transform respawnPoint = GetRespawnPointForPlayer(deadPlayer);
-            
+
             if (respawnPoint != null)
             {
                 // Отключаем контроллер для телепортации
@@ -70,16 +74,21 @@ public class RespawnManager : MonoBehaviourPunCallbacks
                 // Активируем игрока
                 deadPlayer.SetActive(true);
 
-                // Восстанавливаем здоровье
+                // Восстанавливаем здоровье и переинициализируем Health Bar
                 var health = deadPlayer.GetComponent<Core.Components.Health>();
                 if (health != null)
                 {
-                    var field = typeof(Core.Components.Health)
-                        .GetField("_currentHealth", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    field?.SetValue(health, 100f);
+                    health.SetHealth(health.MaxHealth); // Используем публичный метод для установки полного здоровья
+                    health.InitializeHealthBar(); // Переинициализируем Health Bar
                 }
 
                 Debug.Log($"Игрок возрождён на базе: {respawnPoint.name}");
+            }
+            else
+            {
+                Debug.LogError($"RespawnManager: Не удалось найти точку респавна для игрока {deadPlayer.name}.");
+                // Если нет точки респавна, возможно, стоит снова деактивировать игрока или обработать ошибку иначе.
+                // deadPlayer.SetActive(false); 
             }
         }
     }
