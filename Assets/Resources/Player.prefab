@@ -49,6 +49,8 @@ GameObject:
   - component: {fileID: -8546888221127295351}
   - component: {fileID: -5899585894373312611}
   - component: {fileID: -895290745860438287}
+  - component: {fileID: 29207022629253505}
+  - component: {fileID: 6994741128929534212}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -69,7 +71,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 7382214047460987958}
   - {fileID: 7905721150284074365}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -111,9 +112,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   moveDirection: {x: 0, y: 0, z: 0}
-  speed: 10
   gravityScale: 9.81
-  jumpForce: 5
+  jumpForce: 3
+  normalSpeed: 15
+  carrySpeed: 8
 --- !u!114 &2380669862398004536
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -148,6 +150,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ShooterController
   currentWeapon: {fileID: 5187153960802506513}
   holdToFire: 1
+  carry: {fileID: 0}
 --- !u!114 &7059976523720564212
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -227,6 +230,70 @@ MonoBehaviour:
   m_SynchronizeRotation: 1
   m_SynchronizeScale: 0
   m_UseLocal: 1
+--- !u!114 &29207022629253505
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1270568247751947843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ac80ba0c98d4c4099dc11174d943c60, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarryPlantAgent
+  carryPoint: {fileID: 6431829393833539817}
+  weaponScript: {fileID: 424051046322108573}
+--- !u!114 &6994741128929534212
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1270568247751947843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f68bcc8783b42769452c4445b99407e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerInteractionHandler
+  carry: {fileID: 29207022629253505}
+  plantLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  interactRange: 3
+  weaponController: {fileID: 0}
+--- !u!1 &3573988126538372190
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6431829393833539817}
+  m_Layer: 0
+  m_Name: carryPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6431829393833539817
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3573988126538372190}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 1.885}
+  m_LocalScale: {x: 1, y: 0.33333334, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 7382214047460987958}
+  m_Father: {fileID: 7905721150284074365}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5183457640143922165
 GameObject:
   m_ObjectHideFlags: 0
@@ -254,13 +321,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5183457640143922165}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.3372, z: 1.03}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -0.87999916}
   m_LocalScale: {x: 1, y: 0.3256, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8426969319650657826}
-  m_Father: {fileID: 3531725085892812519}
+  m_Father: {fileID: 6431829393833539817}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &9198477351113721312
 MeshFilter:
@@ -369,7 +436,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 3, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 6431829393833539817}
   m_Father: {fileID: 3531725085892812519}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &7419890226198238227

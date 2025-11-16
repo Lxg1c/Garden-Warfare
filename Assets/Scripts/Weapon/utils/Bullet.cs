@@ -16,7 +16,6 @@ namespace Weapon.Utils
         [HideInInspector] public Transform owner;
 
         private Rigidbody _rb;
-        private bool _initialized;
 
         private void Awake()
         {
@@ -29,7 +28,6 @@ namespace Weapon.Utils
                 if (ownerView != null)
                 {
                     owner = ownerView.transform;
-                    _initialized = true;
                 }
             }
             

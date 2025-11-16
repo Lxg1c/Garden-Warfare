@@ -2,7 +2,6 @@
 using Photon.Pun;
 using UnityEngine;
 using Core.Settings;
-using UI;
 
 namespace Gameplay
 {
@@ -14,9 +13,7 @@ namespace Gameplay
         [SerializeField] private int ownerActorNumber = -1;
 
         private Health _health;
-        private bool _initialized; 
-
-        [SerializeField] private HealthBar healthBar;
+        private bool _initialized;
 
         private void Awake()
         {
@@ -30,13 +27,7 @@ namespace Gameplay
             _health.OnDeath += OnDeath;
 
             _initialized = true;
-
             RespawnManager.SetRespawnEnabled(ownerActorNumber, true);
-        }
-
-        private void Start()
-        {
-            healthBar.SetHealth(_health.GetHealth(), _health.MaxHealth);
         }
 
         private void OnDamaged(Transform attacker)
@@ -45,34 +36,27 @@ namespace Gameplay
             if (attacker != null)
             {
                 PhotonView attackerView = attacker.GetComponent<PhotonView>();
-
                 if (attackerView != null && attackerView.OwnerActorNr == ownerActorNumber)
                 {
                     Debug.Log($"LifeFruit({ownerActorNumber}) ignored self damage");
-
-                    // Восстанавливаем здоровье до максимума — т.к. Health уже снял 1 тик
                     _health.SetHealth(_health.MaxHealth);
-
-                    healthBar.SetHealth(_health.MaxHealth, _health.MaxHealth);
-                    return;
                 }
             }
-
-            // Урон от врага — просто обновляем HealthBar
-            healthBar.SetHealth(_health.GetHealth(), _health.MaxHealth);
         }
 
         private void OnDeath(Transform dead)
         {
             if (!_initialized) return;
-
             RespawnManager.SetRespawnEnabled(ownerActorNumber, false);
         }
 
         private void OnDestroy()
         {
-            _health.OnDamaged -= OnDamaged;
-            _health.OnDeath -= OnDeath;
+            if (_health != null)
+            {
+                _health.OnDamaged -= OnDamaged;
+                _health.OnDeath -= OnDeath;
+            }
         }
     }
 }

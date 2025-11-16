@@ -1,5 +1,6 @@
 using UnityEngine;
 using Photon.Pun;
+using Player.Components;
 
 namespace Player
 {
@@ -13,9 +14,13 @@ namespace Player
         private Vector2 _moveInput;
 
         [SerializeField] private Vector3 moveDirection;
-        [SerializeField] private float speed = 5f;
         [SerializeField] private float gravityScale = 9.81f;
         [SerializeField] private float jumpForce = 5f;
+        
+        public float normalSpeed = 5f;
+        public float carrySpeed = 3f;
+
+        private CarryPlantAgent _carry;
 
         private void Awake()
         {
@@ -30,6 +35,7 @@ namespace Player
         private void Start()
         {
             _characterController = GetComponent<CharacterController>();
+            _carry = GetComponent <CarryPlantAgent>();
         }
 
         private void Update()
@@ -40,7 +46,8 @@ namespace Player
 
             if (moveDirection.magnitude > 0)
             {
-                _characterController.Move(speed * Time.deltaTime * moveDirection );
+                float currentSpeed = _carry.IsCarrying ? carrySpeed : normalSpeed;
+                _characterController.Move(currentSpeed * Time.deltaTime * moveDirection );
             }
 
             ApplyGravity();
@@ -76,5 +83,7 @@ namespace Player
             if (photonView.IsMine)
                 _playerInputActions.Disable();
         }
+        
+        // Getter && Setter 
     }
 }

@@ -34,9 +34,36 @@
                     "initialStateCheck": false
                 },
                 {
+                    "name": "Interact",
+                    "type": "Button",
+                    "id": "6cc0cc57-500b-45cc-ab16-9c54f89e21b6",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Drop",
+                    "type": "Button",
+                    "id": "3a709121-f3f2-4108-88d7-655dda41baed",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Place",
+                    "type": "Button",
+                    "id": "f628e4c9-4155-4488-9b2b-fb30fac5e36a",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "Fire",
                     "type": "Button",
-                    "id": "b4c5affd-61e9-4f7f-9c59-0ac5fac3e65f",
+                    "id": "5a3d9ab2-f6b1-40f6-86ab-bb94089ff184",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
@@ -123,7 +150,40 @@
                 },
                 {
                     "name": "",
-                    "id": "20cc3fea-ead8-4030-8cda-5d8e63d6b3fd",
+                    "id": "2b9a557b-ec2a-4e65-9962-f803a66b1bdf",
+                    "path": "<Keyboard>/e",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Interact",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "1d224086-791c-47f1-8632-89fdc0fb0b8c",
+                    "path": "<Keyboard>/g",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Drop",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "05173f0b-2ff1-415c-aee6-7feb72a3875e",
+                    "path": "<Mouse>/leftButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Place",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "e2a2eea9-6caa-4740-9207-5a7659e15ea5",
                     "path": "<Mouse>/leftButton",
                     "interactions": "",
                     "processors": "",
