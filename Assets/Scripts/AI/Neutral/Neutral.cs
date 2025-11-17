@@ -6,12 +6,12 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Serialization;
 
-namespace AI
+namespace AI.Neutral
 {
     [RequireComponent(typeof(NavMeshAgent))]
     [RequireComponent(typeof(Health))]
     [DisallowMultipleComponent]
-    public class NeutralAI : MonoBehaviourPun, IAttackableZoneHandler
+    public class Neutral : MonoBehaviourPun, IAttackableZoneHandler
     {
         [Header("Detection Settings")]
         public float detectionRadius = 6f;
@@ -22,7 +22,7 @@ namespace AI
         public string playerTag = "Player";
 
         [Header("Group Settings")]
-        [FormerlySerializedAs("spawnGroup")] 
+        [FormerlySerializedAs("spawnGroup")]
         public NeutralSpawnPointGroup neutralSpawnGroup;
         private NeutralSpawnPointGroup _assignedGroup;
 
@@ -382,7 +382,7 @@ namespace AI
                 }
             }
         }
-        
+
         public void OnEnterAttackRange(Transform target)
         {
             if (_hasAggro && _currentTarget == target && _currentState == State.Chasing)

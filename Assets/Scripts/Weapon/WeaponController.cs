@@ -1,21 +1,26 @@
-﻿using UnityEngine;
-using Weapon.Base;
+﻿using Photon.Pun;
+using Player.Components;
+using UnityEngine;
 using Weapon.Interfaces;
 
 namespace Weapon
 {
     public class WeaponController : MonoBehaviour
     {
-        [Tooltip("Assign the current weapon (must have a class derived from Weapon)")]
+        [Tooltip("Текущее оружие")]
         public Weapon.Base.Weapon currentWeapon;
 
         [Tooltip("Если true — стрельба удержанием кнопки, иначе — по нажатию")]
         public bool holdToFire = true;
 
+        public CarryPlantAgent carry;
+
         private PlayerInputActions _inputActions;
+        private PhotonView _pv;
 
         private void Awake()
         {
+            _pv = GetComponent<PhotonView>();
             _inputActions = new PlayerInputActions();
         }
 
@@ -24,6 +29,10 @@ namespace Weapon
 
         private void Update()
         {
+            if (!_pv.IsMine) return;
+            
+            if (carry != null && carry.IsCarrying) return;
+            
             if (currentWeapon == null) return;
 
             bool trigger = holdToFire

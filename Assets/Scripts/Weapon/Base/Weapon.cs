@@ -14,7 +14,7 @@ namespace Weapon.Base
 
         private float _nextUseTime;
 
-        public virtual bool CanUse() => Time.time >= _nextUseTime;
+        public bool CanUse() => Time.time >= _nextUseTime;
         protected void MarkUse() => _nextUseTime = Time.time + useRate;
 
         public abstract void Use();

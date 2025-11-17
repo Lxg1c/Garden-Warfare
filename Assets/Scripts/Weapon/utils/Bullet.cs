@@ -16,7 +16,6 @@ namespace Weapon.Utils
         [HideInInspector] public Transform owner;
 
         private Rigidbody _rb;
-        private bool _initialized;
 
         private void Awake()
         {
@@ -29,7 +28,6 @@ namespace Weapon.Utils
                 if (ownerView != null)
                 {
                     owner = ownerView.transform;
-                    _initialized = true;
                 }
             }
             
@@ -50,20 +48,17 @@ namespace Weapon.Utils
             if (owner != null && collision.transform == owner)
                 return;
             
-            if (PhotonNetwork.IsMasterClient)
+            if (collision.gameObject.TryGetComponent(out Health targetHealth))
             {
-                if (collision.gameObject.TryGetComponent(out Health targetHealth))
-                {
-                    PhotonView ownerView = owner != null ? owner.GetComponent<PhotonView>() : null;
+                PhotonView ownerView = owner != null ? owner.GetComponent<PhotonView>() : null;
 
-                    if (ownerView != null)
-                        targetHealth.photonView.RPC("TakeDamageRPC", RpcTarget.All, damage, ownerView.ViewID);
-                    else
-                        targetHealth.TakeDamage(damage, owner);
-                }
-
-                PhotonNetwork.Destroy(gameObject);
+                if (ownerView != null)
+                    targetHealth.photonView.RPC("TakeDamageRPC", RpcTarget.All, damage, ownerView.ViewID);
+                else
+                    targetHealth.TakeDamage(damage, owner);
             }
+
+            PhotonNetwork.Destroy(gameObject);
         }
     }
 }

@@ -1,5 +1,6 @@
 using UnityEngine;
 using Photon.Pun;
+using Player.Components;
 
 namespace Player
 {
@@ -16,14 +17,18 @@ namespace Player
         private Vector2 _moveInput;
         [SerializeField] private Vector3 moveDirection;
 
-        [SerializeField] private float speed = 5f;
         [SerializeField] private float gravityScale = 9.81f;
         [SerializeField] private float jumpForce = 5f;
+
+        public float normalSpeed = 5f;
+        public float carrySpeed = 3f;
+
+        private CarryPlantAgent _carry;
 
         // Плавное смешивание анимаций 
         private float _animMoveX;
         private float _animMoveY;
-        private readonly float _animationSmooth = 10f; // скорость сглаживания
+        private readonly float _animationSmooth = 10f;
 
         private void Awake()
         {
@@ -38,59 +43,58 @@ namespace Player
         {
             _characterController = GetComponent<CharacterController>();
             _animator = GetComponent<Animator>();
+            _carry = GetComponent<CarryPlantAgent>();
         }
 
         private void Update()
         {
             if (!photonView.IsMine) return;
 
+            // горизонтальное движение + вертикальная скорость в одном векторе
             moveDirection = new Vector3(_moveInput.x, _verticalVelocity, _moveInput.y);
 
-            //  Движение
-            if (new Vector3(_moveInput.x, 0, _moveInput.y).magnitude > 0)
+            // движение только по горизонтали
+            Vector3 horizontal = new Vector3(moveDirection.x, 0, moveDirection.z);
+
+            if (horizontal.magnitude > 0)
             {
-                Vector3 worldMove = new Vector3(_moveInput.x, 0, _moveInput.y);
-                _characterController.Move(speed * Time.deltaTime * worldMove);
+                float currentSpeed = _carry != null && _carry.IsCarrying ? carrySpeed : normalSpeed;
+                _characterController.Move(currentSpeed * Time.deltaTime * horizontal);
             }
 
             ApplyGravity();
 
-            //  Анимация 
+            // применяем вертикальное движение
+            _characterController.Move(new Vector3(0, _verticalVelocity, 0) * Time.deltaTime);
+
             UpdateAnimator();
         }
 
         private void UpdateAnimator()
         {
-            // направление движения в мировых координатах
             Vector3 worldMove = new Vector3(_moveInput.x, 0, _moveInput.y);
-
-            // переводим в локальные координаты персонажа
             Vector3 localMove = transform.InverseTransformDirection(worldMove);
 
             localMove.Normalize();
 
-            //  Плавное приближение к целевым значениям 
             _animMoveX = Mathf.Lerp(_animMoveX, localMove.x, Time.deltaTime * _animationSmooth);
             _animMoveY = Mathf.Lerp(_animMoveY, localMove.z, Time.deltaTime * _animationSmooth);
 
             _animator.SetFloat("moveX", _animMoveX);
             _animator.SetFloat("moveY", _animMoveY);
-
-
             _animator.SetFloat("speed", worldMove.magnitude);
         }
+
         public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
         {
             if (stream.IsWriting)
             {
-                // отправляем параметры
                 stream.SendNext(_animMoveX);
                 stream.SendNext(_animMoveY);
                 stream.SendNext(_animator.GetFloat("speed"));
             }
             else
             {
-                // получаем параметры
                 _animMoveX = (float)stream.ReceiveNext();
                 _animMoveY = (float)stream.ReceiveNext();
                 float speed = (float)stream.ReceiveNext();
@@ -100,7 +104,6 @@ namespace Player
                 _animator.SetFloat("speed", speed);
             }
         }
-
 
         private void ApplyGravity()
         {
@@ -116,7 +119,7 @@ namespace Player
 
         private void JumpHandler()
         {
-            if (!photonView.IsMine) return; // только локальный игрок может прыгать
+            if (!photonView.IsMine) return;
             if (_characterController.isGrounded)
                 _verticalVelocity = jumpForce;
         }

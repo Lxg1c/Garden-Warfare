@@ -1,5 +1,4 @@
-﻿using UnityEngine;
-using Weapon.Interfaces;
+﻿using Weapon.Interfaces;
 
 namespace Weapon.Base
 {

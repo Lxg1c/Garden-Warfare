@@ -52,6 +52,20 @@ MonoBehaviour:
   - RPC_TakeDamage
   - RPC_SetAggro
   - RPC_DoAttack
+  - SyncLifeFruitState
+  - SetOwnerRPC
+  - Drop
+  - Place
+  - SetCarried
+  - ResetTimerRPC
+  - StartTimerRPC
+  - StopTimerRPC
+  - SyncTimerRPC
+  - SyncNewPlayerRPC
+  - RPC_SetStartTime
+  - RPC_StartTimer
+  - StartTimer
+  - SyncStartTimer
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

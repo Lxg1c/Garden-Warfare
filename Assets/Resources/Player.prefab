@@ -111,9 +111,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   moveDirection: {x: 0, y: 0, z: 0}
-  speed: 10
   gravityScale: 9.81
   jumpForce: 5
+  normalSpeed: 8
+  carrySpeed: 10
 --- !u!114 &2380669862398004536
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -148,6 +149,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ShooterController
   currentWeapon: {fileID: 5187153960802506513}
   holdToFire: 1
+  carry: {fileID: 0}
 --- !u!114 &7059976523720564212
 MonoBehaviour:
   m_ObjectHideFlags: 0

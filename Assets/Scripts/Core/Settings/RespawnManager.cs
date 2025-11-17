@@ -1,115 +1,156 @@
 using AI;
+using AI.Neutral;
 using Core.Components;
 using Photon.Pun;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using Player.Components;
 
-public class RespawnManager : MonoBehaviourPunCallbacks
+namespace Core.Settings
 {
-    private static RespawnManager _instance;
-
-    [Header("Настройки респавна")]
-    public float respawnDelay = 3f;
-
-    private void Awake()
+    /// <summary>
+    /// Менеджер респавна. Хранит разрешения на респавн per-player.
+    /// Вызовы StartRespawn происходят из Health.Die (или вручную).
+    /// </summary>
+    public class RespawnManager : MonoBehaviourPunCallbacks
     {
-        if (_instance == null)
+        private static RespawnManager _instance;
+
+        [Header("Настройки возрождения")]
+        public float respawnDelay = 3f;
+
+        // статическое состояние — true = респавн разрешён
+        private static Dictionary<int, bool> _respawnAllowed = new Dictionary<int, bool>();
+
+        private void Awake()
         {
-            _instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
-
-    public void StartRespawn(GameObject deadObject)
-    {
-        if (IsPlayer(deadObject))
-        {
-            StartCoroutine(RespawnCoroutine(deadObject));
-        }
-        else
-        {
-            Debug.Log($"Объект {deadObject.name} не является игроком, респавн отменен");
-        }
-    }
-
-    private bool IsPlayer(GameObject obj)
-    {
-        // Убедитесь, что AI у вас в пространстве имен AI, если это не так, удалите AI. из следующей строки
-        if (obj.GetComponent<NeutralAI>() != null) return false; // Проверяем AI первыми, так как они могут быть "объектами"
-
-        if (obj.CompareTag("Player")) return true;
-        if (obj.GetComponent<CharacterController>() != null) return true;
-        if (obj.GetComponent<UnityEngine.InputSystem.PlayerInput>() != null) return true;
-
-        return false;
-    }
-
-    private IEnumerator RespawnCoroutine(GameObject deadPlayer)
-    {
-        yield return new WaitForSeconds(respawnDelay);
-
-        if (deadPlayer != null)
-        {
-            Transform respawnPoint = GetRespawnPointForPlayer(deadPlayer);
-
-            if (respawnPoint != null)
+            if (_instance == null)
             {
-                // Отключаем контроллер для телепортации
-                var controller = deadPlayer.GetComponent<CharacterController>();
-                if (controller != null)
-                    controller.enabled = false;
-
-                // Телепортируем на точку респавна
-                deadPlayer.transform.position = respawnPoint.position;
-                deadPlayer.transform.rotation = respawnPoint.rotation;
-
-                // Включаем контроллер обратно
-                if (controller != null)
-                    controller.enabled = true;
-
-                // Активируем игрока
-                deadPlayer.SetActive(true);
-
-                // Восстанавливаем здоровье и переинициализируем Health Bar
-                var health = deadPlayer.GetComponent<Core.Components.Health>();
-                if (health != null)
-                {
-                    health.SetHealth(health.MaxHealth); // Используем публичный метод для установки полного здоровья
-                    health.InitializeHealthBar(); // Переинициализируем Health Bar
-                }
-
-                Debug.Log($"Игрок возрождён на базе: {respawnPoint.name}");
+                _instance = this;
+                DontDestroyOnLoad(gameObject);
             }
             else
             {
-                Debug.LogError($"RespawnManager: Не удалось найти точку респавна для игрока {deadPlayer.name}.");
-                // Если нет точки респавна, возможно, стоит снова деактивировать игрока или обработать ошибку иначе.
-                // deadPlayer.SetActive(false); 
+                Destroy(gameObject);
             }
-        }
-    }
 
-    private Transform GetRespawnPointForPlayer(GameObject player)
-    {
-        // Пытаемся получить из PlayerInfo
-        var playerInfo = player.GetComponent<PlayerInfo>();
-        if (playerInfo != null && playerInfo.SpawnPoint != null)
+            if (_respawnAllowed == null)
+                _respawnAllowed = new Dictionary<int, bool>();
+        }
+
+        /// <summary>
+        /// Разрешить/запретить респавн для актор номера.
+        /// Это статический метод, можно вызывать из LifeFruit.OnDeath.
+        /// </summary>
+        public static void SetRespawnEnabled(int actorNumber, bool enabled)
         {
-            return playerInfo.SpawnPoint;
+            if (_respawnAllowed == null) _respawnAllowed = new Dictionary<int, bool>();
+            _respawnAllowed[actorNumber] = enabled;
+            Debug.Log($"RespawnManager: SetRespawnEnabled({actorNumber}, {enabled})");
         }
 
-        // Используем NetworkSpawnManager
-        var photonView = player.GetComponent<PhotonView>();
-        if (photonView != null && NetworkSpawnManager.Instance != null)
+        public static bool IsRespawnAllowed(int actorNumber)
         {
-            return NetworkSpawnManager.Instance.GetRespawnPointForPlayer(photonView.OwnerActorNr);
+            if (_respawnAllowed == null) _respawnAllowed = new Dictionary<int, bool>();
+            if (!_respawnAllowed.ContainsKey(actorNumber))
+                _respawnAllowed[actorNumber] = true;
+            return _respawnAllowed[actorNumber];
         }
 
-        Debug.LogError("Cannot find respawn point for player!");
-        return null;
+        /// <summary>
+        /// Запускает респавн — если объект игрок, и если разрешён респавн.
+        /// </summary>
+        public void StartRespawn(GameObject deadObject)
+        {
+            if (!IsPlayer(deadObject))
+            {
+                Debug.Log($"StartRespawn: {deadObject.name} is not a player — skipping.");
+                return;
+            }
+
+            PhotonView pv = deadObject.GetComponent<PhotonView>();
+            if (pv == null)
+            {
+                Debug.LogWarning("StartRespawn: dead object has no PhotonView.");
+                return;
+            }
+
+            int actor = pv.OwnerActorNr;
+            if (!IsRespawnAllowed(actor))
+            {
+                Debug.Log($"Player {actor} cannot respawn — life fruit destroyed.");
+                return;
+            }
+
+            StartCoroutine(RespawnCoroutine(deadObject));
+        }
+
+        private IEnumerator RespawnCoroutine(GameObject deadPlayer)
+        {
+            yield return new WaitForSeconds(respawnDelay);
+
+            if (deadPlayer == null)
+            {
+                Debug.LogWarning("RespawnCoroutine: deadPlayer is null.");
+                yield break;
+            }
+
+            Transform respawnPoint = GetRespawnPointForPlayer(deadPlayer);
+            if (respawnPoint == null)
+            {
+                Debug.LogError("RespawnCoroutine: Cannot find respawn point!");
+                yield break;
+            }
+
+            // Отключаем CharacterController для телепортации
+            var controller = deadPlayer.GetComponent<CharacterController>();
+            if (controller != null) controller.enabled = false;
+
+            deadPlayer.transform.position = respawnPoint.position;
+            deadPlayer.transform.rotation = respawnPoint.rotation;
+
+            if (controller != null) controller.enabled = true;
+
+            deadPlayer.SetActive(true);
+
+            // восстановление здоровья — используем версию из HEAD
+            var health = deadPlayer.GetComponent<Core.Components.Health>();
+            if (health != null)
+            {
+                health.SetHealth(health.MaxHealth);
+                health.InitializeHealthBar();
+            }
+
+            Debug.Log($"Player respawned at {respawnPoint.name}");
+        }
+
+        private bool IsPlayer(GameObject obj)
+        {
+            if (obj == null) return false;
+
+            // AI исключаем
+            if (obj.GetComponent<Neutral>() != null) return false;
+
+            if (obj.CompareTag("Player")) return true;
+            if (obj.GetComponent<CharacterController>() != null) return true;
+            if (obj.GetComponent<UnityEngine.InputSystem.PlayerInput>() != null) return true;
+
+            return false;
+        }
+
+        private Transform GetRespawnPointForPlayer(GameObject player)
+        {
+            var pi = player.GetComponent<PlayerInfo>();
+            if (pi != null && pi.SpawnPoint != null)
+                return pi.SpawnPoint;
+
+            var pv = player.GetComponent<PhotonView>();
+            if (pv != null && NetworkSpawnManager.instance != null)
+                return NetworkSpawnManager.instance.GetPlayerSpawnPoint(pv.OwnerActorNr);
+
+            Debug.LogError("GetRespawnPointForPlayer: cannot determine spawn point.");
+            return null;
+        }
     }
 }

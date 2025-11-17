@@ -94,7 +94,7 @@ public class MenuManager : MonoBehaviourPunCallbacks
     {
         Debug.Log("Opening game scene");
         UpdateStatus($"Вошли в комнату: {PhotonNetwork.CurrentRoom.Name}");
-        PhotonNetwork.LoadLevel("GameScene");
+        PhotonNetwork.LoadLevel("Game");
         Debug.Log("Открыта сцена GameScene");
     }
     

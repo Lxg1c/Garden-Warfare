@@ -1,4 +1,5 @@
 ﻿using Core.Interfaces;
+using Core.Settings;
 using Photon.Pun;
 using UnityEngine;
 using System.Collections; // Добавлено для корутин, если будут использоваться, хотя здесь не обязательно
@@ -13,7 +14,8 @@ namespace Core.Components
     public class Health : MonoBehaviourPun, IDamageable
     {
         [SerializeField] private float maxHealth = 100f;
-        public float MaxHealth => maxHealth; // Добавлено свойство для доступа к MaxHealth
+        public float MaxHealth => maxHealth; // Свойство для доступа к MaxHealth
+
         private float _currentHealth;
 
         // Events
@@ -148,13 +150,16 @@ namespace Core.Components
             }
         }
 
+        // Setter && Getter
         public float GetHealth() => _currentHealth;
 
         // Добавлено для удобства доступа к максимальному здоровью из HealthBarController
-        public float GetMaxHealth() => maxHealth;
+        // Public свойство MaxHealth уже есть, поэтому этот метод избыточен
+        // public float GetMaxHealth() => maxHealth; 
 
         /// <summary>
         /// Устанавливает текущее здоровье на указанное значение, с учетом максимального здоровья.
+        /// Обновляет Health Bar после изменения здоровья.
         /// </summary>
         public void SetHealth(float newHealth)
         {
