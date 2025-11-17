@@ -1,10 +1,11 @@
+using AI;
+using AI.Neutral;
+using Core.Components;
+using Photon.Pun;
 using System.Collections;
 using System.Collections.Generic;
-using Photon.Pun;
 using UnityEngine;
-using AI.Neutral;
 using Player.Components;
-
 
 namespace Core.Settings
 {
@@ -34,7 +35,6 @@ namespace Core.Settings
                 Destroy(gameObject);
             }
 
-            // Инициализация словаря (на случай domain reload)
             if (_respawnAllowed == null)
                 _respawnAllowed = new Dictionary<int, bool>();
         }
@@ -59,7 +59,7 @@ namespace Core.Settings
         }
 
         /// <summary>
-        /// Запускает респавн — если объект игрок, и если разрешён респавн для владельца.
+        /// Запускает респавн — если объект игрок, и если разрешён респавн.
         /// </summary>
         public void StartRespawn(GameObject deadObject)
         {
@@ -103,7 +103,7 @@ namespace Core.Settings
                 yield break;
             }
 
-            // временно отключаем controller для телепортации
+            // Отключаем CharacterController для телепортации
             var controller = deadPlayer.GetComponent<CharacterController>();
             if (controller != null) controller.enabled = false;
 
@@ -114,15 +114,12 @@ namespace Core.Settings
 
             deadPlayer.SetActive(true);
 
+            // восстановление здоровья — используем версию из HEAD
             var health = deadPlayer.GetComponent<Core.Components.Health>();
             if (health != null)
             {
-                // Поправляем текущее здоровье — используем рефлексию, как у тебя, 
-                // или добавим публичный метод RestoreHealth в Health (лучше — добавить метод).
-                var field = typeof(Core.Components.Health)
-                    .GetField("_currentHealth", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                field?.SetValue(health, health != null ? (int)health.GetHealth() /* noop */ : 100);
-                // Лучше иметь метод в Health: RestoreToMax() — но оставим рефлексию, т.к. так у тебя было.
+                health.SetHealth(health.MaxHealth);
+                health.InitializeHealthBar();
             }
 
             Debug.Log($"Player respawned at {respawnPoint.name}");
@@ -131,17 +128,19 @@ namespace Core.Settings
         private bool IsPlayer(GameObject obj)
         {
             if (obj == null) return false;
+
+            // AI исключаем
+            if (obj.GetComponent<Neutral>() != null) return false;
+
             if (obj.CompareTag("Player")) return true;
             if (obj.GetComponent<CharacterController>() != null) return true;
             if (obj.GetComponent<UnityEngine.InputSystem.PlayerInput>() != null) return true;
-            // NeutralAI — не игрок
-            if (obj.GetComponent<Neutral>() != null) return false;
+
             return false;
         }
 
         private Transform GetRespawnPointForPlayer(GameObject player)
         {
-            // Попробуем получить PlayerInfo
             var pi = player.GetComponent<PlayerInfo>();
             if (pi != null && pi.SpawnPoint != null)
                 return pi.SpawnPoint;

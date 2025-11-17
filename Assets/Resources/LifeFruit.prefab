@@ -129,6 +129,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Core.Components.Health
   maxHealth: 100
+  healthBarPrefab: {fileID: 0}
 --- !u!114 &1589636368760148534
 MonoBehaviour:
   m_ObjectHideFlags: 0

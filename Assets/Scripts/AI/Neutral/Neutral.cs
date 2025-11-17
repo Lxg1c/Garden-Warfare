@@ -22,7 +22,7 @@ namespace AI.Neutral
         public string playerTag = "Player";
 
         [Header("Group Settings")]
-        [FormerlySerializedAs("spawnGroup")] 
+        [FormerlySerializedAs("spawnGroup")]
         public NeutralSpawnPointGroup neutralSpawnGroup;
         private NeutralSpawnPointGroup _assignedGroup;
 
@@ -382,7 +382,7 @@ namespace AI.Neutral
                 }
             }
         }
-        
+
         public void OnEnterAttackRange(Transform target)
         {
             if (_hasAggro && _currentTarget == target && _currentState == State.Chasing)
