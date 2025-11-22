@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PhotonServerSettings
   m_EditorClassIdentifier: PhotonUnityNetworking::Photon.Pun.ServerSettings
   AppSettings:
-    AppIdRealtime: 7d71db93-c7b5-42b7-965e-28176754245e
+    AppIdRealtime: f19cf65b-c98a-4fb5-8236-adb816eda12d
     AppIdFusion: 
     AppIdChat: 
     AppIdVoice: 
@@ -37,35 +37,14 @@ MonoBehaviour:
   - ClickRpc
   - DestroyRpc
   - DestroySpaceship
-  - Fire
-  - RespawnSpaceship
-  - TakeDamage
-  - TakeDamageRPC
-  - DamageFlashRPC
-  - OnGroupAggroTriggeredRPC
-  - RequestOwnershipRPC
-  - SyncAIStateRPC
-  - NotifyPlayerSpawned
-  - RequestSpawnSync
-  - SpawnPlayerForClient
-  - RPC_Shoot
-  - RPC_TakeDamage
-  - RPC_SetAggro
-  - RPC_DoAttack
-  - SyncLifeFruitState
-  - SetOwnerRPC
   - Drop
+  - Fire
   - Place
-  - SetCarried
-  - ResetTimerRPC
-  - StartTimerRPC
-  - StopTimerRPC
-  - SyncTimerRPC
-  - SyncNewPlayerRPC
+  - RespawnSpaceship
+  - RPC_DoAttack
   - RPC_SetStartTime
-  - RPC_StartTimer
-  - StartTimer
-  - SyncStartTimer
+  - SetCarried
+  - TakeDamageRPC
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

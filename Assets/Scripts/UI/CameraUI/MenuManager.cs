@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class MenuManager : MonoBehaviourPunCallbacks
+public class NetworkSpawnManager : MonoBehaviourPunCallbacks
 {
     [Header("UI References")]
     public Button quickMatchButton;
@@ -94,7 +94,7 @@ public class MenuManager : MonoBehaviourPunCallbacks
     {
         Debug.Log("Opening game scene");
         UpdateStatus($"Вошли в комнату: {PhotonNetwork.CurrentRoom.Name}");
-        PhotonNetwork.LoadLevel("Game");
+        PhotonNetwork.LoadLevel("Polygon");
         Debug.Log("Открыта сцена GameScene");
     }
     

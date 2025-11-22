@@ -1,43 +1,59 @@
 using UnityEngine;
 using Photon.Pun;
+using TMPro;
 
-public class GameTimer : MonoBehaviourPunCallbacks
+namespace UI.HUD.GameTimer
 {
-    public static GameTimer Instance;
-
-    public double GameTime { get; private set; }
-
-    private double _startTime;
-    private bool _running;
-
-    private void Awake()
+    public class GameTimer : MonoBehaviourPun, IPunObservable
     {
-        Instance = this;
-    }
-
-    private void Update()
-    {
-        if (_running == false) return;
-        GameTime = PhotonNetwork.Time - _startTime;
-    }
-
-    // вызывается только у хоста
-    public void StartTimer()
-    {
-        if (!PhotonNetwork.IsMasterClient) return;
-
-        _startTime = PhotonNetwork.Time;
-
-        // сохраняем время старта для ВСЕХ, включая будущих игроков
-        photonView.RPC("RPC_SetStartTime", RpcTarget.AllBuffered, _startTime);
-
-        _running = true;
-    }
-
-    [PunRPC]
-    private void RPC_SetStartTime(double start)
-    {
-        _startTime = start;
-        _running = true;
+        public TMP_Text timerText;
+        
+        private float _currentTime;
+        private bool _isTimerRunning;
+        
+        void Start()
+        {
+            _currentTime = 0f;
+            UpdateTimerDisplay();
+            
+            if (PhotonNetwork.IsMasterClient)
+            {
+                _isTimerRunning = true;
+            }
+        }
+        
+        void Update()
+        {
+            if (_isTimerRunning && PhotonNetwork.IsMasterClient)
+            {
+                _currentTime += Time.deltaTime; 
+                UpdateTimerDisplay();
+            }
+        }
+        
+        void UpdateTimerDisplay()
+        {
+            if (timerText != null)
+            {
+                int minutes = Mathf.FloorToInt(_currentTime / 60f);
+                int seconds = Mathf.FloorToInt(_currentTime % 60f);
+                timerText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
+            }
+        }
+        
+        public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+        {
+            if (stream.IsWriting)
+            {
+                stream.SendNext(_currentTime);
+                stream.SendNext(_isTimerRunning);
+            }
+            else
+            {
+                _currentTime = (float)stream.ReceiveNext();
+                _isTimerRunning = (bool)stream.ReceiveNext();
+                UpdateTimerDisplay();
+            }
+        }
     }
 }

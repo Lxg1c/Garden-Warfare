@@ -45,7 +45,10 @@ namespace FischlWorks_FogWar
         private List<MeshRenderer> meshRenderers = null;
         private List<SkinnedMeshRenderer> skinnedMeshRenderers = null;
 
-
+        public bool GetVisibility()
+        {
+            return visibility;
+        }
 
         private void Start()
         {

@@ -12,16 +12,14 @@ namespace Player
         [SerializeField] private LayerMask groundLayer;
 
         [Header("Rotation Settings")]
-        [SerializeField] private float rotationSpeed = 15f;
-
-        [Header("Aim Debug")]
-        [SerializeField] private bool showAimDirection = true;
-        [SerializeField] private float aimLineLength = 3f;
-        [SerializeField] private Color aimLineColor = Color.green;
+        [SerializeField] private float rotationSpeed = 10f;
+        [SerializeField] private float aimSmoothTime = 0.08f;
+        [SerializeField] private float rotationSmoothTime = 0.05f;
 
         private Vector3 _aimDirection = Vector3.forward;
+        private Vector3 _smoothAimVelocity;
 
-        public Vector3 AimDirection => _aimDirection.normalized; // доступно для оружия
+        private float _currentRotationVelocity;
 
         private void Start()
         {
@@ -32,7 +30,6 @@ namespace Player
             }
             else
             {
-                // Убираем чужую камеру
                 if (mainCamera != null)
                     mainCamera.gameObject.SetActive(false);
             }
@@ -41,9 +38,14 @@ namespace Player
         private void Update()
         {
             if (!photonView.IsMine) return;
+
             HandleRotation();
-            if (showAimDirection)
-                DrawAimDirection();
+
+#if UNITY_EDITOR
+            Debug.DrawLine(transform.position + Vector3.up * 0.1f,
+                transform.position + Vector3.up * 0.1f + _aimDirection * 3f,
+                Color.green);
+#endif
         }
 
         private void HandleRotation()
@@ -53,26 +55,31 @@ namespace Player
 
             if (Physics.Raycast(ray, out RaycastHit hit, 1000f, groundLayer))
             {
-                // Цель в XZ-плоскости
-                Vector3 targetPoint = hit.point;
-                Vector3 flatDirection = targetPoint - transform.position;
-                flatDirection.y = 0; // оставляем только горизонтальную составляющую
+                Vector3 targetDir = hit.point - transform.position;
+                targetDir.y = 0;
 
-                if (flatDirection.sqrMagnitude > 0.001f)
-                {
-                    _aimDirection = flatDirection.normalized;
+                if (targetDir.sqrMagnitude < 0.01f)
+                    return;
 
-                    Quaternion targetRotation = Quaternion.LookRotation(_aimDirection, Vector3.up);
-                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-                }
+                // Направление без сглаживания (чтобы реагировало мгновенно)
+                Vector3 aimDir = targetDir.normalized;
+
+                // Вычисляем целевой угол
+                float targetAngle = Mathf.Atan2(aimDir.x, aimDir.z) * Mathf.Rad2Deg;
+
+                // Текущий угол
+                float currentAngle = transform.eulerAngles.y;
+
+                // Плавный поворот ИМЕННО угла
+                float smoothedAngle = Mathf.LerpAngle(
+                    currentAngle,
+                    targetAngle,
+                    rotationSpeed * Time.deltaTime
+                );
+
+                transform.rotation = Quaternion.Euler(0, smoothedAngle, 0);
+                _aimDirection = aimDir;
             }
-        }
-
-        private void DrawAimDirection()
-        {
-            Vector3 start = transform.position + Vector3.up * 0.1f;
-            Vector3 end = start + _aimDirection * aimLineLength;
-            Debug.DrawLine(start, end, aimLineColor);
         }
     }
 }

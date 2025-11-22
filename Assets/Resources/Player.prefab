@@ -132,9 +132,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   rotationSpeed: 10
-  showAimDirection: 1
-  aimLineLength: 3
-  aimLineColor: {r: 0, g: 1, b: 0, a: 1}
+  aimSmoothTime: 5
+  rotationSmoothTime: 1
 --- !u!114 &424051046322108573
 MonoBehaviour:
   m_ObjectHideFlags: 0

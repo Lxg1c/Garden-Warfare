@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 1589636368760148534}
   - component: {fileID: 7826800135940158442}
   - component: {fileID: 316923338794099611}
+  - component: {fileID: 9087102598526997730}
   m_Layer: 0
   m_Name: LifeFruit
   m_TagString: Untagged
@@ -180,6 +181,23 @@ MonoBehaviour:
   fogWar: {fileID: 0}
   visibility: 0
   additionalRadius: 0
+--- !u!114 &9087102598526997730
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3426391584002515046}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96b23a83ac4897d448ff404c1cb4b3ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.Health.HealthBarController
+  healthBar: {fileID: 7070033308401890865}
+  health: {fileID: 81215151800548050}
+  checkOwnerDamage: 0
+  ownerActorNumber: -1
+  csFogVisibilityAgent: {fileID: 316923338794099611}
 --- !u!1001 &8625376269671990560
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -290,3 +308,14 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 7001837547315503704, guid: 5ed98c644e8e3ca4e883607f112c2fd6, type: 3}
   m_PrefabInstance: {fileID: 8625376269671990560}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &7070033308401890865 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1562383832158270225, guid: 5ed98c644e8e3ca4e883607f112c2fd6, type: 3}
+  m_PrefabInstance: {fileID: 8625376269671990560}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d86ec694a5642349079911e07befc1b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.HealthBar
