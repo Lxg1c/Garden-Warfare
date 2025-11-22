@@ -9,36 +9,35 @@ public class HealthBarController : MonoBehaviour
     [SerializeField] private Image healthFillImage;
     [SerializeField] private Image damageOverlayImage;
     [SerializeField] private Image borderImage;
-    [SerializeField] private Image backgroundImage; // Для прямого доступа к фоновому изображению
+    [SerializeField] private Image backgroundImage;
 
     [Header("Settings")]
-    [SerializeField] private float damageOverlayDelay = 0.5f; // Задержка перед началом уменьшения damageOverlay
-    [SerializeField] private float damageOverlaySpeed = 2f;    // Скорость уменьшения damageOverlay
-    [SerializeField] private Color friendlyBorderColor = Color.yellow; // Цвет рамки для основного игрока (IsMine)
-    [SerializeField] private Color enemyBorderColor = Color.black;    // Цвет рамки для всех остальных (!IsMine)
-    [SerializeField] private string playerTag = "Player"; // НОВОЕ: Тег для идентификации игровых объектов
+    [SerializeField] private float damageOverlayDelay = 0.5f;
+    [SerializeField] private float damageOverlaySpeed = 2f;
+    [SerializeField] private Color friendlyBorderColor = Color.yellow;
+    [SerializeField] private Color enemyBorderColor = Color.black;    
+    [SerializeField] private string playerTag = "Player"; 
 
     [Header("Transparency Settings")]
-    [SerializeField][Range(0f, 1f)] private float healthBarAlpha = 0.7f; // Прозрачность всей полоски здоровья
+    [SerializeField][Range(0f, 1f)] private float healthBarAlpha = 0.7f;
 
     [Header("Positioning")]
-    [SerializeField] private float verticalOffset = 1.5f; // Смещение полоски здоровья над юнитом
-    [SerializeField] private float zOffset = 0f;          // Смещение полоски здоровья по её локальной Z-оси
+    [SerializeField] private float verticalOffset = 1.5f; 
 
-    private Health targetHealth; // Ссылка на Health компонент объекта, к которому привязан Health Bar
+    [SerializeField] private float zOffset;          
+
+    private Health targetHealth;
     private Camera mainCamera;
     private Coroutine damageOverlayCoroutine;
 
     public void Initialize(Health healthComponent)
     {
         targetHealth = healthComponent;
-        mainCamera = Camera.main; // Предполагаем, что основная камера имеет тег MainCamera
-
-        // --- УСИЛЕННАЯ ПРОВЕРКА: Цвет рамки только для МОЕГО ИГРОКА С ТЕГОМ ---
+        mainCamera = Camera.main; 
+        
         bool isLocalPlayerCharacter = false;
         if (targetHealth.photonView != null)
         {
-            // Проверка: принадлежит ли объект локальному игроку И имеет ли он тег "Player"
             if (targetHealth.photonView.IsMine && targetHealth.CompareTag(playerTag))
             {
                 isLocalPlayerCharacter = true;
@@ -47,12 +46,14 @@ public class HealthBarController : MonoBehaviour
 
         if (isLocalPlayerCharacter)
         {
-            borderImage.color = friendlyBorderColor; // Желтый для основного игрока
-            Debug.Log($"HealthBar for {targetHealth.name} (ViewID: {targetHealth.photonView.ViewID}, Owner: {targetHealth.photonView.Owner.NickName}) is LOCAL PLAYER CHARACTER (Tag: {targetHealth.tag}). Setting border to YELLOW.");
+            borderImage.color = friendlyBorderColor; 
+            Debug.Log($"HealthBar for {targetHealth.name} (ViewID: {targetHealth.photonView.ViewID}, " +
+                      $"Owner: {targetHealth.photonView.Owner.NickName}) is LOCAL PLAYER CHARACTER (Tag: " +
+                      $"{targetHealth.tag}). Setting border to YELLOW.");
         }
         else
         {
-            borderImage.color = enemyBorderColor; // Черный для всех остальных
+            borderImage.color = enemyBorderColor;
             string debugMsg = $"HealthBar for {targetHealth.name}";
             if (targetHealth.photonView != null)
             {
@@ -65,14 +66,9 @@ public class HealthBarController : MonoBehaviour
             debugMsg += $" is NOT LOCAL PLAYER CHARACTER (Tag: {targetHealth.tag}). Setting border to BLACK.";
             Debug.Log(debugMsg);
         }
-        // --- Конец усиленной проверки ---
-
-        // --- Применение прозрачности ко всем Image элементам ---
         SetAlpha(healthBarAlpha);
-        // --- Конец применения прозрачности ---
-
-        // Инициализируем полоску здоровья с текущими значениями
-        UpdateHealthBar(targetHealth.GetHealth(), targetHealth.MaxHealth);
+        
+        UpdateHealthBar(targetHealth.GetHealth(), targetHealth.GetMaxHealth());
     }
 
     private void OnDestroy()
@@ -87,24 +83,19 @@ public class HealthBarController : MonoBehaviour
     private void Update()
     {
         if (targetHealth == null || mainCamera == null) return;
-
-        // Позиция над объектом (базовая)
+        
         Vector3 targetPosition = targetHealth.transform.position + Vector3.up * verticalOffset;
         transform.position = targetPosition;
-
-        // --- Вращение только по X ---
+        
         Vector3 cameraEuler = mainCamera.transform.rotation.eulerAngles;
         transform.rotation = Quaternion.Euler(cameraEuler.x, 0f, 0f);
-        // --- Конец вращения только по X ---
 
-        // --- Применение смещения по Z ---
         transform.position += transform.forward * zOffset;
-        // --- Конец смещения по Z ---
     }
 
     private void OnTargetDamaged(Transform attacker)
     {
-        UpdateHealthBar(targetHealth.GetHealth(), targetHealth.MaxHealth);
+        UpdateHealthBar(targetHealth.GetHealth(), targetHealth.GetMaxHealth());
     }
 
     private void OnTargetDeath(Transform deadTransform)

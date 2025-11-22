@@ -2,7 +2,6 @@
 using Core.Settings;
 using Photon.Pun;
 using UnityEngine;
-using System.Collections; // Добавлено для корутин, если будут использоваться, хотя здесь не обязательно
 
 namespace Core.Components
 {
@@ -13,10 +12,8 @@ namespace Core.Components
     /// </summary>
     public class Health : MonoBehaviourPun, IDamageable
     {
-        [SerializeField] private float maxHealth = 100f;
-        public float MaxHealth => maxHealth; // Свойство для доступа к MaxHealth
-
-        private float _currentHealth;
+        [SerializeField] private float currentHealth = 100f;
+        private float MaxHealth => currentHealth;
 
         // Events
         public delegate void DamageEvent(Transform attacker);
@@ -24,51 +21,13 @@ namespace Core.Components
 
         public delegate void DeathEvent(Transform deadTransform);
         public event DeathEvent OnDeath;
-
-        // --- Добавленные поля для Health Bar ---
-        [SerializeField] private GameObject healthBarPrefab; // Префаб полоски здоровья
+        
+        [SerializeField] private GameObject healthBarPrefab;
         private HealthBarController _healthBarController;
-        // --- Конец добавленных полей ---
-
+        
         private void Start()
         {
-            _currentHealth = maxHealth;
-            InitializeHealthBar(); // Вызываем новый метод для инициализации Health Bar
-        }
-
-        /// <summary>
-        /// Инициализирует и создает Health Bar для этого существа.
-        /// Этот метод можно вызвать извне, если Health Bar нужно создать динамически или позже.
-        /// </summary>
-        public void InitializeHealthBar()
-        {
-            // Если Health Bar уже существует, возможно, нужно сначала его уничтожить, чтобы избежать дублирования
-            if (_healthBarController != null)
-            {
-                Destroy(_healthBarController.gameObject);
-                _healthBarController = null;
-            }
-
-            if (healthBarPrefab != null)
-            {
-                // Создаем Health Bar. Предполагаем, что HealthBarController управляет своим позиционированием.
-                GameObject healthBarGO = Instantiate(healthBarPrefab);
-                _healthBarController = healthBarGO.GetComponent<HealthBarController>();
-                if (_healthBarController != null)
-                {
-                    _healthBarController.Initialize(this); // Инициализируем HealthBarController
-                    // Обновляем полоску сразу после инициализации, чтобы она показала текущее здоровье
-                    _healthBarController.UpdateHealthBar(_currentHealth, maxHealth);
-                }
-                else
-                {
-                    Debug.LogError("HealthBarPrefab does not have a HealthBarController component!");
-                }
-            }
-            else
-            {
-                Debug.LogWarning($"HealthBarPrefab is not assigned for {name}. Health bar will not be displayed.");
-            }
+            Debug.Log($"[Health Start] {name}: Current={currentHealth}, Max={MaxHealth}");
         }
 
         // -----------------------
@@ -113,19 +72,19 @@ namespace Core.Components
         // -----------------------
         private void ApplyDamage(int damage, Transform attacker)
         {
-            if (_currentHealth <= 0f)
+            if (currentHealth <= 0f)
             {
                 Debug.LogWarning($"[{name}] ApplyDamage ignored — already dead.");
                 return;
             }
 
-            SetHealth(_currentHealth - damage); // Используем SetHealth для обновления и Health Bar
+            SetHealth(currentHealth - damage);
 
-            Debug.Log($"[{name}] took {damage} dmg. HP: {_currentHealth}");
+            Debug.Log($"[{name}] took {damage} dmg. HP: {currentHealth}");
 
             OnDamaged?.Invoke(attacker);
 
-            if (_currentHealth <= 0f)
+            if (currentHealth <= 0f)
                 Die();
         }
 
@@ -150,9 +109,6 @@ namespace Core.Components
             }
         }
 
-        // Setter && Getter
-        public float GetHealth() => _currentHealth;
-
         // Добавлено для удобства доступа к максимальному здоровью из HealthBarController
         // Public свойство MaxHealth уже есть, поэтому этот метод избыточен
         // public float GetMaxHealth() => maxHealth; 
@@ -163,11 +119,11 @@ namespace Core.Components
         /// </summary>
         public void SetHealth(float newHealth)
         {
-            _currentHealth = Mathf.Clamp(newHealth, 0f, maxHealth);
+            currentHealth = Mathf.Clamp(newHealth, 0f, MaxHealth);
             // Обновляем Health Bar после изменения здоровья
             if (_healthBarController != null)
             {
-                _healthBarController.UpdateHealthBar(_currentHealth, maxHealth);
+                _healthBarController.UpdateHealthBar(currentHealth, MaxHealth);
             }
         }
 
@@ -176,7 +132,11 @@ namespace Core.Components
         /// </summary>
         public void Heal(float amount)
         {
-            SetHealth(_currentHealth + amount);
+            SetHealth(currentHealth + amount);
         }
+        
+        // Setter && Getter
+        public float GetHealth() => currentHealth;
+        public float GetMaxHealth() => MaxHealth;
     }
 }

@@ -32,14 +32,14 @@ namespace Gameplay
 
         private void OnDamaged(Transform attacker)
         {
-            // Если наш владелец попал по своему фрукту → полный иммунитет
+            // Если наш владелец попал по своему предмету, то отменяем урон
             if (attacker != null)
             {
                 PhotonView attackerView = attacker.GetComponent<PhotonView>();
                 if (attackerView != null && attackerView.OwnerActorNr == ownerActorNumber)
                 {
                     Debug.Log($"LifeFruit({ownerActorNumber}) ignored self damage");
-                    _health.SetHealth(_health.MaxHealth);
+                    _health.SetHealth(_health.GetMaxHealth());
                 }
             }
         }

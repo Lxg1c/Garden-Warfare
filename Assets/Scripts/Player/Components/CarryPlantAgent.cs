@@ -2,99 +2,158 @@
 using UnityEngine;
 using Photon.Pun;
 
-
 namespace Player.Components
 {
     public class CarryPlantAgent : MonoBehaviourPun
     {
-        [Header("Links")] public Transform carryPoint;
-        public MonoBehaviour weaponScript; // WeaponController
-
-        private Plant _carriedPlant;
-
-        public bool IsCarrying => _carriedPlant != null;
-
-        private void Update()
-        {
-            if (!photonView.IsMine) return;
-
-            // Растение следует за точкой переноски
-            if (_carriedPlant != null)
-            {
-                _carriedPlant.transform.position = carryPoint.position;
-                _carriedPlant.transform.rotation = carryPoint.rotation;
-            }
-        }
-
-        // -------------------------------------------------
-        // PICK UP
-        // -------------------------------------------------
+        [Header("Carry Settings")]
+        public float snapGridSize = 1f;
+        
+        public bool IsCarrying { get; private set; }
+        public Plant CarriedPlant { get; private set; }
+        
         public void PickupPlant(Plant plant)
         {
-            if (!photonView.IsMine) return;
             if (IsCarrying) return;
-
-            _carriedPlant = plant;
-
-            plant.photonView.RPC("SetCarried", RpcTarget.All, photonView.ViewID);
-
-            // отключаем оружие
-            if (weaponScript != null)
-                weaponScript.enabled = false;
+            
+            // Сетевое взаимодействие
+            if (photonView.IsMine)
+            {
+                photonView.RPC("RPC_PickupPlant", RpcTarget.All, plant.GetComponent<PhotonView>().ViewID);
+            }
         }
-
-        // -------------------------------------------------
-        // DROP
-        // -------------------------------------------------
+        
+        [PunRPC]
+        private void RPC_PickupPlant(int plantViewID)
+        {
+            PhotonView plantView = PhotonView.Find(plantViewID);
+            if (plantView == null) return;
+            
+            Plant plant = plantView.GetComponent<Plant>();
+            if (plant == null) return;
+            
+            CarriedPlant = plant;
+            IsCarrying = true;
+            
+            // Отключаем физику и AI растения
+            Rigidbody rb = plant.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.isKinematic = true;
+                rb.useGravity = false;
+            }
+            
+            // ПЕРЕМЕЩАЕМ К СЕБЕ (carryPoint)
+            plant.transform.SetParent(this.transform);
+            plant.transform.localPosition = Vector3.zero;
+            plant.transform.localRotation = Quaternion.identity;
+            
+            // Отключаем коллайдеры
+            Collider[] colliders = plant.GetComponentsInChildren<Collider>();
+            foreach (Collider col in colliders)
+            {
+                col.enabled = false;
+            }
+            
+            // Отключаем AI поведение
+            Plant plantAI = plant.GetComponent<Plant>();
+            if (plantAI != null)
+            {
+                plantAI.enabled = false;
+            }
+        }
+        
         public void DropPlant()
         {
-            if (!photonView.IsMine) return;
             if (!IsCarrying) return;
-
-            _carriedPlant.photonView.RPC("Drop", RpcTarget.All);
-
-            _carriedPlant = null;
-
-            // включаем оружие обратно
-            if (weaponScript != null)
-                weaponScript.enabled = true;
+            
+            if (photonView.IsMine)
+            {
+                photonView.RPC("RPC_DropPlant", RpcTarget.All);
+            }
         }
-
-        // -------------------------------------------------
-        // PLACE ON BASE
-        // -------------------------------------------------
-        public void PlacePlant(Vector3 snappedPos, Quaternion rot)
+        
+        [PunRPC]
+        private void RPC_DropPlant()
         {
-            if (!photonView.IsMine) return;
-            if (!IsCarrying) return;
-
-            _carriedPlant.photonView.RPC(
-                "Place",
-                RpcTarget.All,
-                snappedPos,
-                rot.eulerAngles.y
+            if (CarriedPlant == null) return;
+            
+            // Восстанавливаем физику
+            Rigidbody rb = CarriedPlant.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                rb.useGravity = true;
+            }
+            
+            // Включаем коллайдеры
+            Collider[] colliders = CarriedPlant.GetComponentsInChildren<Collider>();
+            foreach (Collider col in colliders)
+            {
+                col.enabled = true;
+            }
+            
+            // Включаем AI
+            Plant plantAI = CarriedPlant.GetComponent<Plant>();
+            if (plantAI != null)
+            {
+                plantAI.enabled = true;
+            }
+            
+            // Отсоединяем
+            CarriedPlant.transform.SetParent(null);
+            CarriedPlant = null;
+            IsCarrying = false;
+        }
+        
+        public bool PlacePlant(Vector3 position, Quaternion rotation)
+        {
+            if (!IsCarrying) return false;
+            
+            if (photonView.IsMine)
+            {
+                photonView.RPC("RPC_PlacePlant", RpcTarget.All, position, rotation);
+                return true;
+            }
+            
+            return false;
+        }
+        
+        [PunRPC]
+        private void RPC_PlacePlant(Vector3 position, Quaternion rotation)
+        {
+            if (CarriedPlant == null) return;
+            
+            // Устанавливаем растение на землю
+            CarriedPlant.transform.SetParent(null);
+            CarriedPlant.transform.position = position;
+            CarriedPlant.transform.rotation = rotation;
+            
+            // Включаем коллайдеры
+            Collider[] colliders = CarriedPlant.GetComponentsInChildren<Collider>();
+            foreach (Collider col in colliders)
+            {
+                col.enabled = true;
+            }
+            
+            // Включаем AI
+            Plant plantAI = CarriedPlant.GetComponent<Plant>();
+            if (plantAI != null)
+            {
+                plantAI.enabled = true;
+            }
+            
+            CarriedPlant = null;
+            IsCarrying = false;
+        }
+        
+        public Vector3 SnapToGrid(Vector3 position)
+        {
+            return new Vector3(
+                Mathf.Round(position.x / snapGridSize) * snapGridSize,
+                position.y,
+                Mathf.Round(position.z / snapGridSize) * snapGridSize
             );
-
-            _carriedPlant = null;
-
-            if (weaponScript != null)
-                weaponScript.enabled = true;
-        }
-
-        public void OnPlayerDamaged()
-        {
-            if (IsCarrying)
-                DropPlant();
-        }
-
-        // -------------------------------------------------
-        // GRID SNAPPING
-        // -------------------------------------------------
-        public Vector3 SnapToGrid(Vector3 pos, float grid = 1f)
-        {
-            pos.x = Mathf.Round(pos.x / grid) * grid;
-            pos.z = Mathf.Round(pos.z / grid) * grid;
-            return pos;
         }
     }
 }

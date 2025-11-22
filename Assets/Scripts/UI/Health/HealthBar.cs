@@ -7,10 +7,15 @@ namespace UI.Health
     {
         public Slider slider;
 
-        public void SetHealth(float health, float maxHealth)
+        public void SetHealth(float health)
+        {
+            Debug.Log($"Ставим slider value {health}");
+            slider.value = health;
+        }
+
+        public void SetMaxHealth(float maxHealth)
         {
             slider.maxValue = maxHealth;
-            slider.value = health;
         }
     }
 }

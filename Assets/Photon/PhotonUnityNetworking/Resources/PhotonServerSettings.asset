@@ -45,6 +45,9 @@ MonoBehaviour:
   - RPC_SetStartTime
   - SetCarried
   - TakeDamageRPC
+  - RPC_DropPlant
+  - RPC_PickupPlant
+  - RPC_PlacePlant
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

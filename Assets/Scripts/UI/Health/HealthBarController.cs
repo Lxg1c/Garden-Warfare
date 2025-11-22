@@ -37,10 +37,24 @@ namespace UI.Health
                 PhotonView pv = GetComponent<PhotonView>();
                 if (pv != null) ownerActorNumber = pv.OwnerActorNr;
             }
-            healthBar.SetHealth(health.GetHealth(), health.MaxHealth);
+            
+            // ✅ ИСПРАВЛЕНИЕ: Используем MaxHealth из Health компонента
+            healthBar.SetMaxHealth(health.GetMaxHealth());
+            healthBar.SetHealth(health.GetHealth());
+            
+            // ✅ ДЛЯ ОТЛАДКИ:
+            Debug.Log($"HealthBar Initialized: {health.GetHealth()}/{health.GetMaxHealth()} HP");
             
             health.OnDamaged += OnDamaged;
             health.OnDeath += OnDeath;
+        }
+        
+        private void LateUpdate()
+        {
+            if (Camera.main != null)
+            {
+                healthBar.transform.rotation = Camera.main.transform.rotation;
+            }
         }
 
         private void FixedUpdate()
@@ -58,17 +72,17 @@ namespace UI.Health
                 PhotonView attackerView = attacker.GetComponent<PhotonView>();
                 if (attackerView != null && attackerView.OwnerActorNr == ownerActorNumber)
                 {
-                    healthBar.SetHealth(health.MaxHealth, health.MaxHealth);
                     return;
                 }
             }
-            
-            healthBar.SetHealth(health.GetHealth(), health.MaxHealth);
+            // ✅ РАСКОММЕНТИРУЙТЕ ЭТО:
+            healthBar.SetHealth(health.GetHealth());
         }
 
         private void OnDeath(Transform dead)
         {
-            healthBar.SetHealth(0, health.MaxHealth);
+            // ✅ РАСКОММЕНТИРУЙТЕ ЭТО:
+            healthBar.SetHealth(0);
         }
 
         private void OnDestroy()

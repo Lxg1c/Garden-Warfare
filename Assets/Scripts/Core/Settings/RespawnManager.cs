@@ -1,4 +1,3 @@
-using AI;
 using AI.Neutral;
 using Core.Components;
 using Photon.Pun;
@@ -115,11 +114,10 @@ namespace Core.Settings
             deadPlayer.SetActive(true);
 
             // восстановление здоровья — используем версию из HEAD
-            var health = deadPlayer.GetComponent<Core.Components.Health>();
+            var health = deadPlayer.GetComponent<Health>();
             if (health != null)
             {
-                health.SetHealth(health.MaxHealth);
-                health.InitializeHealthBar();
+                health.SetHealth(health.GetMaxHealth());
             }
 
             Debug.Log($"Player respawned at {respawnPoint.name}");
