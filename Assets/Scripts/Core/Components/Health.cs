@@ -5,15 +5,11 @@ using UnityEngine;
 
 namespace Core.Components
 {
-    /// <summary>
-    /// Универсальный Health для сетевого мира:
-    /// - Урон рассчитывается только у MasterClient (авторитет)
-    /// - Состояние синхронизируется со всеми через RPC
-    /// </summary>
     public class Health : MonoBehaviourPun, IDamageable
     {
+        [Header("Health Settings")]
+        [SerializeField] private float maxHealth = 100f;
         [SerializeField] private float currentHealth = 100f;
-        private float MaxHealth => currentHealth;
 
         // Events
         public delegate void DamageEvent(Transform attacker);
@@ -22,12 +18,10 @@ namespace Core.Components
         public delegate void DeathEvent(Transform deadTransform);
         public event DeathEvent OnDeath;
         
-        [SerializeField] private GameObject healthBarPrefab;
-        private HealthBarController _healthBarController;
-        
         private void Start()
         {
-            Debug.Log($"[Health Start] {name}: Current={currentHealth}, Max={MaxHealth}");
+            currentHealth = maxHealth;
+            Debug.Log($"[Health Start] {name}: Current={currentHealth}, Max={maxHealth}");
         }
 
         // -----------------------
@@ -35,27 +29,19 @@ namespace Core.Components
         // -----------------------
         public void TakeDamage(float amount, Transform attacker = null)
         {
-            // Только MasterClient инициирует сетевой процесс урона
             if (PhotonNetwork.IsMasterClient)
             {
                 var attackerView = attacker ? attacker.GetComponent<PhotonView>() : null;
                 int attackerId = attackerView != null ? attackerView.ViewID : -1;
 
-                // Приводим amount к int при отправке (RPC ожидает Int32)
                 int dmgToSend = Mathf.CeilToInt(amount);
                 photonView.RPC(nameof(TakeDamageRPC), RpcTarget.All, dmgToSend, attackerId);
             }
         }
 
-        // -----------------------
-        // RPC: выполняется на всех
-        // IMPORTANT: сигнатура должна соответствовать типам, которые мы посылаем!
-        // В нашем проекте мы посылаем (int damage, int attackerViewId)
-        // -----------------------
         [PunRPC]
         public void TakeDamageRPC(int damage, int attackerViewId = -1, PhotonMessageInfo info = default)
         {
-            // Восстанавливаем трансформ атакующего по viewId (если есть)
             Transform attacker = null;
             if (attackerViewId != -1)
             {
@@ -63,13 +49,9 @@ namespace Core.Components
                 if (av != null) attacker = av.transform;
             }
 
-            // Приводим damage (int) к float для внутренней логики
             ApplyDamage(damage, attacker);
         }
 
-        // -----------------------
-        // Внутренняя логика урона
-        // -----------------------
         private void ApplyDamage(int damage, Transform attacker)
         {
             if (currentHealth <= 0f)
@@ -79,7 +61,6 @@ namespace Core.Components
             }
 
             SetHealth(currentHealth - damage);
-
             Debug.Log($"[{name}] took {damage} dmg. HP: {currentHealth}");
 
             OnDamaged?.Invoke(attacker);
@@ -100,43 +81,20 @@ namespace Core.Components
                 Debug.LogWarning("RespawnManager not found.");
 
             gameObject.SetActive(false);
-
-            // Уничтожаем Health Bar при смерти объекта
-            if (_healthBarController != null)
-            {
-                Destroy(_healthBarController.gameObject);
-                _healthBarController = null; // Обнуляем ссылку
-            }
         }
 
-        // Добавлено для удобства доступа к максимальному здоровью из HealthBarController
-        // Public свойство MaxHealth уже есть, поэтому этот метод избыточен
-        // public float GetMaxHealth() => maxHealth; 
-
-        /// <summary>
-        /// Устанавливает текущее здоровье на указанное значение, с учетом максимального здоровья.
-        /// Обновляет Health Bar после изменения здоровья.
-        /// </summary>
         public void SetHealth(float newHealth)
         {
-            currentHealth = Mathf.Clamp(newHealth, 0f, MaxHealth);
-            // Обновляем Health Bar после изменения здоровья
-            if (_healthBarController != null)
-            {
-                _healthBarController.UpdateHealthBar(currentHealth, MaxHealth);
-            }
+            currentHealth = Mathf.Clamp(newHealth, 0f, maxHealth);
+            Debug.Log($"[Health SetHealth] {name}: New={currentHealth}, Max={maxHealth}");
         }
 
-        /// <summary>
-        /// Лечит существо на указанное количество здоровья.
-        /// </summary>
         public void Heal(float amount)
         {
             SetHealth(currentHealth + amount);
         }
         
-        // Setter && Getter
         public float GetHealth() => currentHealth;
-        public float GetMaxHealth() => MaxHealth;
+        public float GetMaxHealth() => maxHealth;
     }
 }

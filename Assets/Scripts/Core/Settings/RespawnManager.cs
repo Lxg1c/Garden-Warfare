@@ -5,6 +5,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Player.Components;
+using UI.Health;
+using UnityEngine.SceneManagement;
 
 namespace Core.Settings
 {
@@ -16,11 +18,13 @@ namespace Core.Settings
     {
         private static RespawnManager _instance;
 
+        [Header("Сцена меню")] 
+        public string mainMenuScene = "MainMenu";
+        
         [Header("Настройки возрождения")]
         public float respawnDelay = 3f;
-
-        // статическое состояние — true = респавн разрешён
-        private static Dictionary<int, bool> _respawnAllowed = new Dictionary<int, bool>();
+        
+        private static Dictionary<int, bool> _respawnAllowed;
 
         private void Awake()
         {
@@ -49,7 +53,7 @@ namespace Core.Settings
             Debug.Log($"RespawnManager: SetRespawnEnabled({actorNumber}, {enabled})");
         }
 
-        public static bool IsRespawnAllowed(int actorNumber)
+        private static bool IsRespawnAllowed(int actorNumber)
         {
             if (_respawnAllowed == null) _respawnAllowed = new Dictionary<int, bool>();
             if (!_respawnAllowed.ContainsKey(actorNumber))
@@ -78,11 +82,50 @@ namespace Core.Settings
             int actor = pv.OwnerActorNr;
             if (!IsRespawnAllowed(actor))
             {
-                Debug.Log($"Player {actor} cannot respawn — life fruit destroyed.");
+                Debug.Log($"Player {actor} cannot respawn — life fruit destroyed. Returning to main menu.");
+                
+                ReturnToMainMenu(pv);
                 return;
             }
 
             StartCoroutine(RespawnCoroutine(deadObject));
+        }
+        
+        /// <summary>
+        /// Отправляет игрока в главное меню когда респавн запрещен
+        /// </summary>
+        private void ReturnToMainMenu(PhotonView playerView)
+        {
+            if (playerView.IsMine)
+            {
+                Debug.Log("Returning to main menu - respawn not allowed");
+                
+                ShowDeathMessage();
+                
+                StartCoroutine(ReturnToMenuCoroutine());
+            }
+        }
+        
+        /// <summary>
+        /// Отправляет игрока в главное меню когда респавн запрещен
+        /// </summary>
+        private IEnumerator ReturnToMenuCoroutine()
+        {
+            yield return new WaitForSeconds(2f);
+
+            if (PhotonNetwork.InRoom)
+            {
+                PhotonNetwork.LeaveRoom();
+            }
+
+            yield return new WaitUntil(() => !PhotonNetwork.InRoom);
+
+            SceneManager.LoadScene(mainMenuScene);
+        }
+
+        private void ShowDeathMessage()
+        {
+            Debug.Log("☠️ ВАШ ЖИЗНЕННЫЙ ПЛОД УНИЧТОЖЕН! ВОЗВРАЩЕНИЕ В ГЛАВНОЕ МЕНЮ...");
         }
 
         private IEnumerator RespawnCoroutine(GameObject deadPlayer)
@@ -101,8 +144,7 @@ namespace Core.Settings
                 Debug.LogError("RespawnCoroutine: Cannot find respawn point!");
                 yield break;
             }
-
-            // Отключаем CharacterController для телепортации
+    
             var controller = deadPlayer.GetComponent<CharacterController>();
             if (controller != null) controller.enabled = false;
 
@@ -113,11 +155,16 @@ namespace Core.Settings
 
             deadPlayer.SetActive(true);
 
-            // восстановление здоровья — используем версию из HEAD
             var health = deadPlayer.GetComponent<Health>();
             if (health != null)
             {
                 health.SetHealth(health.GetMaxHealth());
+            }
+            
+            var healthBarController = deadPlayer.GetComponent<HealthBarController>();
+            if (healthBarController != null)
+            {
+                healthBarController.OnRespawn();
             }
 
             Debug.Log($"Player respawned at {respawnPoint.name}");
@@ -126,8 +173,7 @@ namespace Core.Settings
         private bool IsPlayer(GameObject obj)
         {
             if (obj == null) return false;
-
-            // AI исключаем
+            
             if (obj.GetComponent<Neutral>() != null) return false;
 
             if (obj.CompareTag("Player")) return true;

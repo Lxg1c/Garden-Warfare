@@ -16,6 +16,11 @@ namespace UI.Health
 
         private void Start()
         {
+            InitializeHealthBar();
+        }
+
+        private void InitializeHealthBar()
+        {
             if (healthBar == null)
             {
                 Debug.LogError("HealthBar reference is missing!", this);
@@ -38,13 +43,16 @@ namespace UI.Health
                 if (pv != null) ownerActorNumber = pv.OwnerActorNr;
             }
             
-            // ✅ ИСПРАВЛЕНИЕ: Используем MaxHealth из Health компонента
+            // ✅ ВКЛЮЧАЕМ HealthBar при инициализации
+            healthBar.gameObject.SetActive(true);
             healthBar.SetMaxHealth(health.GetMaxHealth());
             healthBar.SetHealth(health.GetHealth());
             
-            // ✅ ДЛЯ ОТЛАДКИ:
             Debug.Log($"HealthBar Initialized: {health.GetHealth()}/{health.GetMaxHealth()} HP");
             
+            // Отписываемся и подписываемся заново (на случай респавна)
+            health.OnDamaged -= OnDamaged;
+            health.OnDeath -= OnDeath;
             health.OnDamaged += OnDamaged;
             health.OnDeath += OnDeath;
         }
@@ -75,14 +83,28 @@ namespace UI.Health
                     return;
                 }
             }
-            // ✅ РАСКОММЕНТИРУЙТЕ ЭТО:
+            
             healthBar.SetHealth(health.GetHealth());
         }
 
         private void OnDeath(Transform dead)
         {
-            // ✅ РАСКОММЕНТИРУЙТЕ ЭТО:
+            // ✅ При смерти СКРЫВАЕМ HealthBar, но не уничтожаем
+            healthBar.gameObject.SetActive(false);
             healthBar.SetHealth(0);
+        }
+
+        // ✅ ДОБАВЬТЕ метод для обработки респавна
+        public void OnRespawn()
+        {
+            Debug.Log("HealthBarController: OnRespawn called");
+            
+            // ✅ ВКЛЮЧАЕМ HealthBar и обновляем значения
+            healthBar.gameObject.SetActive(true);
+            healthBar.SetMaxHealth(health.GetMaxHealth());
+            healthBar.SetHealth(health.GetHealth());
+            
+            Debug.Log($"HealthBar after respawn: {health.GetHealth()}/{health.GetMaxHealth()} HP");
         }
 
         private void OnDestroy()

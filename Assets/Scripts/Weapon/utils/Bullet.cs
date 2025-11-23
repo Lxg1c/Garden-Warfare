@@ -57,7 +57,9 @@ namespace Weapon.Utils
                 else
                     targetHealth.TakeDamage(damage, owner);
             }
-
+            
+            if (!photonView.IsMine) return;
+            
             PhotonNetwork.Destroy(gameObject);
         }
     }

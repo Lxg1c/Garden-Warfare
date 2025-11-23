@@ -9,7 +9,6 @@ namespace UI.Health
 
         public void SetHealth(float health)
         {
-            Debug.Log($"Ставим slider value {health}");
             slider.value = health;
         }
 
