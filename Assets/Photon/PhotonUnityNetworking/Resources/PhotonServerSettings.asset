@@ -48,6 +48,9 @@ MonoBehaviour:
   - RPC_DropPlant
   - RPC_PickupPlant
   - RPC_PlacePlant
+  - RPC_DropObject
+  - RPC_PickupObject
+  - RPC_SetBaseRadius
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

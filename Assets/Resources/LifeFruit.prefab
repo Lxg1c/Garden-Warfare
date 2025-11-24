@@ -129,8 +129,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 43b7e9d3e9f444cca43a8e5e8aa92f76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Core.Components.Health
+  maxHealth: 100
   currentHealth: 100
-  healthBarPrefab: {fileID: 0}
 --- !u!114 &1589636368760148534
 MonoBehaviour:
   m_ObjectHideFlags: 0

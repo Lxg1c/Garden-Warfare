@@ -1,6 +1,5 @@
 using UnityEngine;
 using Photon.Pun;
-using Player.Components;
 
 namespace Player
 {
@@ -22,9 +21,7 @@ namespace Player
 
         public float normalSpeed = 5f;
         public float carrySpeed = 3f;
-
-        private CarryPlantAgent _carry;
-
+        
         // Плавное смешивание анимаций 
         private float _animMoveX;
         private float _animMoveY;
@@ -43,7 +40,6 @@ namespace Player
         {
             _characterController = GetComponent<CharacterController>();
             _animator = GetComponent<Animator>();
-            _carry = GetComponent<CarryPlantAgent>();
         }
 
         private void Update()
@@ -58,7 +54,7 @@ namespace Player
 
             if (horizontal.magnitude > 0)
             {
-                float currentSpeed = _carry != null && _carry.IsCarrying ? carrySpeed : normalSpeed;
+                float currentSpeed = normalSpeed;
                 _characterController.Move(currentSpeed * Time.deltaTime * horizontal);
             }
 

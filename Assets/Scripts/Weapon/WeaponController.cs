@@ -1,5 +1,4 @@
 ﻿using Photon.Pun;
-using Player.Components;
 using UnityEngine;
 using Weapon.Interfaces;
 
@@ -13,10 +12,9 @@ namespace Weapon
         [Tooltip("Если true — стрельба удержанием кнопки, иначе — по нажатию")]
         public bool holdToFire = true;
 
-        public CarryPlantAgent carry;
-
         private PlayerInputActions _inputActions;
         private PhotonView _pv;
+        private bool _isEnabled = true; // ✅ Новый флаг
 
         private void Awake()
         {
@@ -30,9 +28,7 @@ namespace Weapon
         private void Update()
         {
             if (!_pv.IsMine) return;
-            
-            if (carry != null && carry.IsCarrying) return;
-            
+            if (!_isEnabled) return; // ✅ Не обрабатываем ввод если отключен
             if (currentWeapon == null) return;
 
             bool trigger = holdToFire
@@ -49,5 +45,13 @@ namespace Weapon
                 reloadable.Reload();
             }
         }
+        
+        public void SetWeaponEnabled(bool enabled)
+        {
+            _isEnabled = enabled;
+            Debug.Log($"WeaponController: {(_isEnabled ? "Включен" : "Отключен")}");
+        }
+
+        public bool IsWeaponEnabled() => _isEnabled;
     }
 }

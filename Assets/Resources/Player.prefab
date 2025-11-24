@@ -74,6 +74,7 @@ Transform:
   m_Children:
   - {fileID: 5949211244040801875}
   - {fileID: 7037884201370003442}
+  - {fileID: 4996844111996908315}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &7673392873201330699
@@ -151,7 +152,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ShooterController
   currentWeapon: {fileID: 5187153960802506513}
   holdToFire: 1
-  carry: {fileID: 0}
 --- !u!114 &7059976523720564212
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -188,8 +188,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 43b7e9d3e9f444cca43a8e5e8aa92f76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Core.Components.Health
+  maxHealth: 100
   currentHealth: 100
-  healthBarPrefab: {fileID: 1605861487293937988, guid: d62ccb4cddb296c4494b2e9256eba035, type: 3}
 --- !u!114 &-8546888221127295351
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -267,9 +267,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f68bcc8783b42769452c4445b99407e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerInteractionHandler
-  carry: {fileID: 5614272269073542100}
   weaponController: {fileID: 424051046322108573}
-  plantLayer:
+  carryPoint: {fileID: 4996844111996908315}
+  canPickUpLayer:
     serializedVersion: 2
     m_Bits: 64
   interactRange: 3
@@ -300,7 +300,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4996844111996908315}
-  - component: {fileID: 5614272269073542100}
   m_Layer: 0
   m_Name: carryPoint
   m_TagString: Untagged
@@ -316,26 +315,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2188933352886911752}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0.000000019416776, y: -0.00000022351736, z: 0.0000001842126, w: 1}
+  m_LocalPosition: {x: 0.18, y: 1.3269999, z: 0.995}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7382214047460987958}
+  m_Father: {fileID: 3531725085892812519}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5614272269073542100
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2188933352886911752}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0ac80ba0c98d4c4099dc11174d943c60, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Player.Components.CarryPlantAgent
-  snapGridSize: 1
 --- !u!1 &5183457640143922165
 GameObject:
   m_ObjectHideFlags: 0
@@ -369,7 +355,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8426969319650657826}
-  - {fileID: 4996844111996908315}
   m_Father: {fileID: 6450244298058376638}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &9198477351113721312
